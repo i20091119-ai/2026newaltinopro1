@@ -81,17 +81,19 @@
   .stat.coin .n{color:var(--sun)} .stat.goal{border-color:#ffe0a3}.stat.goal .n{color:var(--coral)}
   #fuelWarn{background:#fff0f1;border:2px solid #ffc9cf;color:#c0392b;border-radius:16px;padding:10px 14px;text-align:center;font-size:1.15rem}
 
-  .play{flex:1;min-height:0;display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
-  .padwrap{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);
-           display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:0;overflow:hidden}
-  .dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:12px;aspect-ratio:1;
-        height:min(100%,54vh);max-width:100%;margin:0 auto}
-  .pad{border:0;background:none;box-shadow:none;padding:0;touch-action:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .pad img{width:100%;height:100%;object-fit:contain;pointer-events:none;filter:drop-shadow(0 4px 6px rgba(120,90,50,.18))}
-  .pad.up{grid-area:1/2}.pad.left{grid-area:2/1}.pad.right{grid-area:2/3}.pad.down{grid-area:3/2}
+  .play{flex:1;min-height:0;display:grid;grid-template-columns:.85fr 1.3fr .85fr;gap:16px}
+  .padwrap{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:var(--shadow);
+           display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
+  .zcap{color:var(--mut);font-size:.9rem;text-align:center;flex:none}
+  .pad{border:0;background:none;box-shadow:none;padding:0;touch-action:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:0}
+  .pad img{max-width:100%;max-height:100%;object-fit:contain;pointer-events:none;filter:drop-shadow(0 4px 6px rgba(120,90,50,.18))}
+  .zoneL .pad{flex:1}
+  .steerrow{flex:1;min-height:0;display:flex;gap:12px;align-items:stretch}
+  .steerrow .pad{flex:1}
   .pad.pressed{transform:scale(.92)}.pad.pressed img{filter:brightness(1.08) drop-shadow(0 2px 3px rgba(120,90,50,.2))}
-  .carbox{margin-top:4px}
-  .side{display:flex;flex-direction:column;justify-content:center;gap:14px;min-height:0}
+  .carbox{margin-top:auto;text-align:center;min-height:0}
+  .carbox .mascot-img{max-height:14vh;width:auto}
+  .side{display:flex;flex-direction:column;justify-content:center;gap:12px;min-height:0}
   .side .btn.big{padding:22px;font-size:1.4rem}
   .charge{font-size:1.5rem}
   .speedrow{display:flex;justify-content:space-between;align-items:center;background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow);font-size:1.2rem}
@@ -184,20 +186,24 @@
     <div id="fuelWarn" class="hidden">🔋 에너지가 없어요! 충전소에서 문제를 풀어요</div>
 
     <div class="play">
-      <div class="padwrap">
-        <div class="dpad">
-          <button id="d-up" class="pad up"><img src="assets/pad-up.png" alt="위"></button>
-          <button id="d-left" class="pad left"><img src="assets/pad-left.png" alt="왼쪽"></button>
-          <button id="d-right" class="pad right"><img src="assets/pad-right.png" alt="오른쪽"></button>
-          <button id="d-down" class="pad down"><img src="assets/pad-down.png" alt="아래"></button>
-        </div>
-        <div class="carbox"><img id="gameCar" class="mascot-img" src="assets/mascot-happy.png" alt="마스코트"></div>
+      <div class="padwrap zoneL">
+        <div class="zcap">🚗 왼손 — 앞 · 뒤</div>
+        <button id="d-up" class="pad"><img src="assets/pad-up.png" alt="앞으로"></button>
+        <button id="d-down" class="pad"><img src="assets/pad-down.png" alt="뒤로"></button>
       </div>
       <div class="side">
         <button id="chargeBtn" class="btn mint big charge"><img class="bic" src="assets/charge.png"> 충전소 (문제 풀기)</button>
         <div class="speedrow"><span>현재 속도</span><b id="speedNow">350</b></div>
         <button id="upgradeBtn" class="btn sun big"><img class="bic" src="assets/speedup.png"><span id="upgradeText">속도업</span></button>
         <button id="resetBtn" class="btn ghost">🔄 새 판 (초기화)</button>
+        <div class="carbox"><img id="gameCar" class="mascot-img" src="assets/mascot-happy.png" alt="마스코트"></div>
+      </div>
+      <div class="padwrap zoneR">
+        <div class="zcap">방향 — 오른손 ↔</div>
+        <div class="steerrow">
+          <button id="d-left" class="pad"><img src="assets/pad-left.png" alt="왼쪽"></button>
+          <button id="d-right" class="pad"><img src="assets/pad-right.png" alt="오른쪽"></button>
+        </div>
       </div>
     </div>
 
