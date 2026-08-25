@@ -106,8 +106,9 @@
 
   // ① 센서 숫자로 수학 — 사이값(평균) 계산
   function updateCalc() { $('brightVal').textContent = brightVal; $('darkVal').textContent = darkVal; $('calcA').textContent = brightVal; $('calcB').textContent = darkVal; }
-  function capBright() { if (sensor.cds < 999) { brightVal = sensor.cds; updateCalc(); toast('밝은 곳 조도 = ' + brightVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
-  function capDark() { if (sensor.cds < 999) { darkVal = sensor.cds; updateCalc(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
+  const toEven = (v) => Math.round(v / 2) * 2; // 항상 짝수로 → 사이값 나눗셈이 딱 떨어짐(초등 배려)
+  function capBright() { if (sensor.cds < 999) { brightVal = toEven(sensor.cds); updateCalc(); toast('밝은 곳 조도 = ' + brightVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
+  function capDark() { if (sensor.cds < 999) { darkVal = toEven(sensor.cds); updateCalc(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
   function checkLight() {
     const v = parseInt($('lightInput').value, 10);
     const exp = Math.round((brightVal + darkVal) / 2);
