@@ -36,3 +36,18 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
 }
+
+// 저장소 루트 webapp/ 를 빌드 시 assets/webapp 으로 동기화한다.
+// 두 벌을 손으로 맞추다 어긋나는 문제(드리프트)를 없애기 위함.
+// .ttf 원본은 용량이 커서 제외(런타임은 woff2 사용). dest 는 .gitignore 로 제외됨.
+tasks.register('syncWebapp', Sync) {
+    from("$rootDir/../webapp") {
+        exclude '**/*.ttf'
+    }
+    into "$projectDir/src/main/assets/webapp"
+}
+tasks.named('preBuild').configure { dependsOn 'syncWebapp' }
+// 에셋 병합 태스크가 반드시 동기화 이후에 실행되도록 보강(모든 변형).
+tasks.matching { it.name.startsWith('merge') && it.name.endsWith('Assets') }.configureEach {
+    dependsOn 'syncWebapp'
+}
