@@ -4,130 +4,227 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>수학 연료 꼬리잡기</title>
-<link rel="stylesheet" href="css/style.css" />
 <style>
-  body.hit{animation:flash .25s;}
-  @keyframes flash{0%{background:#3a0d0d}100%{}}
-  .game{max-width:760px;margin:0 auto}
-  .hud{display:flex;align-items:center;gap:14px;margin:6px 0 14px}
-  .energywrap{flex:1}
-  .energywrap .top{display:flex;justify-content:space-between;font-size:13px;color:var(--mut,#8ea3b5);margin-bottom:4px}
-  .track{height:26px;background:#0c141c;border:1px solid var(--line,#26333f);border-radius:14px;overflow:hidden}
-  #energyBar{height:100%;width:40%;background:linear-gradient(90deg,#37c0a8,#3ecf8e);transition:width .12s linear}
-  #energyBar.low{background:linear-gradient(90deg,#f5a623,#e5484d)}
-  .caughtbox{text-align:center;background:#18222e;border:1px solid var(--line,#26333f);border-radius:12px;padding:8px 14px;min-width:96px}
-  .caughtbox .n{font-size:30px;font-weight:800;line-height:1}
-  .caughtbox .l{font-size:11px;color:var(--mut,#8ea3b5)}
-  #fuelWarn{background:#3a1010;border:1px solid #e5484d;color:#ffd7d7;border-radius:10px;padding:8px 12px;text-align:center;font-weight:700;margin-bottom:10px}
-  body.nofuel .pad.up,body.nofuel .pad.down{opacity:.4}
-  .main{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
-  .dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:10px;aspect-ratio:1;max-width:320px;margin:0 auto}
-  .pad{font-size:26px;border:0;border-radius:14px;background:#243342;color:#e7eef5;touch-action:none}
+  /* ====== 이사만루체 (폰트 파일을 webapp/fonts/ 에 넣으면 적용됨) ====== */
+  @font-face{
+    font-family:'Isamanru';
+    src:url('fonts/isamanru.woff2') format('woff2'),
+        url('fonts/isamanru.ttf') format('truetype');
+    font-weight:normal; font-display:swap;
+  }
+  :root{
+    --cream:#fff7ea; --sky:#eaf6ff; --ink:#3a3230; --mut:#9b8f86;
+    --mint:#37c9ad; --sun:#ffb23e; --coral:#ff7a86; --blue:#5ea0ff; --grape:#b085ff;
+    --card:#ffffff; --line:#f0e6d8; --shadow:0 8px 24px rgba(120,90,50,.12);
+    --r:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Isamanru','Pretendard','Apple SD Gothic Neo',system-ui,sans-serif;
+    color:var(--ink); background:
+      radial-gradient(900px 400px at 85% -5%, #ffe6c2, transparent 60%),
+      radial-gradient(700px 500px at 0% 110%, #d8f0ff, transparent 55%),
+      var(--cream);
+    min-height:100vh; letter-spacing:.01em; user-select:none;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:16px 16px 40px}
+  .hidden{display:none !important}
+  h1{margin:0}
+  .btn{border:0;border-radius:16px;font-family:inherit;font-size:1.05rem;padding:14px 18px;cursor:pointer;
+       background:var(--blue);color:#fff;box-shadow:var(--shadow);transition:transform .08s}
+  .btn:active{transform:translateY(2px)}
+  .btn.big{width:100%;font-size:1.2rem;padding:18px}
+  .btn.mint{background:var(--mint)} .btn.sun{background:var(--sun);color:#5a3200}
+  .btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+  .btn:disabled{opacity:.45}
+
+  /* 자동차 캐릭터 */
+  .car{width:150px;height:auto;filter:drop-shadow(0 8px 10px rgba(120,90,50,.2))}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  .car.bob{animation:bob 1.6s ease-in-out infinite}
+  @keyframes wob{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+
+  /* ====== 시작 화면 ====== */
+  .start{min-height:88vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+  .start h1{font-size:2.1rem;color:var(--ink)}
+  .start .sub{color:var(--mut);font-size:1.1rem;margin:2px 0 18px}
+  .gradepick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:420px}
+  .gradepick button{font-family:inherit;border:0;border-radius:20px;padding:20px 8px;font-size:1.3rem;color:#fff;
+      cursor:pointer;box-shadow:var(--shadow);transition:transform .08s}
+  .gradepick button:active{transform:scale(.95)}
+  .gradepick .g1{background:#ff9db0}.gradepick .g2{background:#ffb23e}.gradepick .g3{background:#ffd24a;color:#6a4b00}
+  .gradepick .g4{background:#7fd48a}.gradepick .g5{background:#37c9ad}.gradepick .g6{background:#5ec6ff}
+  .gradepick .g7{background:#5ea0ff}.gradepick .g8{background:#b085ff}.gradepick .g9{background:#ff85c0}
+  .gradepick small{display:block;font-size:.7rem;opacity:.85;font-weight:normal;margin-top:2px}
+
+  /* ====== 게임 화면 ====== */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .gradechip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 14px;font-size:1rem;box-shadow:var(--shadow)}
+  .gradechip b{color:var(--coral)}
+  .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:5px 12px}
+  .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}
+
+  .hud{display:flex;gap:12px;align-items:stretch;margin-bottom:12px}
+  .fuel{flex:1;background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow)}
+  .fuel .top{display:flex;justify-content:space-between;font-size:.95rem;color:var(--mut);margin-bottom:6px}
+  .fuel .top b{color:var(--ink);font-size:1.15rem}
+  .gauge{height:26px;background:#f3ece0;border-radius:14px;overflow:hidden;border:2px solid #efe4d4}
+  #energyBar{height:100%;width:25%;background:linear-gradient(90deg,#7fe0c8,#37c9ad);transition:width .12s linear;border-radius:12px}
+  #energyBar.low{background:linear-gradient(90deg,#ffcf6a,#ff7a86)}
+  .stat{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:10px 12px;text-align:center;min-width:88px;box-shadow:var(--shadow)}
+  .stat .n{font-size:1.9rem;line-height:1}.stat .l{font-size:.78rem;color:var(--mut);margin-top:2px}
+  .stat.coin .n{color:var(--sun)} .stat.goal{border-color:#ffe0a3}.stat.goal .n{color:var(--coral)}
+  #fuelWarn{background:#fff0f1;border:2px solid #ffc9cf;color:#c0392b;border-radius:16px;padding:10px 14px;text-align:center;margin-bottom:10px;font-size:1.05rem}
+
+  .play{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start}
+  .padwrap{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);text-align:center}
+  .dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:10px;aspect-ratio:1;max-width:300px;margin:0 auto}
+  .pad{font-size:30px;border:0;border-radius:20px;background:#eaf6ff;color:#3f7bd6;box-shadow:inset 0 -4px 0 rgba(94,160,255,.25);touch-action:none;cursor:pointer}
   .pad.up{grid-area:1/2}.pad.left{grid-area:2/1}.pad.right{grid-area:2/3}.pad.down{grid-area:3/2}
-  .pad.pressed{background:#37c0a8;color:#04140e}
-  .side .btn{width:100%;margin-bottom:10px;padding:18px}
-  .charge{background:linear-gradient(180deg,rgba(56,207,168,.16),rgba(56,207,168,.04));border:1px solid rgba(56,207,168,.5);font-size:1.15rem}
-  .slider label{font-size:12px;color:var(--mut,#8ea3b5)} .slider{margin-bottom:8px}
-  input[type=range]{width:100%;accent-color:#37c0a8}
-  details.viewer{margin-top:14px;background:#16203a;border:1px solid var(--line,#26333f);border-radius:12px;padding:10px 14px}
-  details.viewer summary{cursor:pointer;color:var(--mut,#8ea3b5);font-size:13px}
+  .pad.pressed{background:#37c9ad;color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+  .carbox{margin-top:6px}
+  .side>*{margin-bottom:10px}
+  .charge{font-size:1.25rem}
+  .speedrow{display:flex;justify-content:space-between;align-items:center;background:#fff;border:2px solid var(--line);border-radius:16px;padding:10px 14px;box-shadow:var(--shadow)}
+  .speedrow b{font-size:1.3rem;color:var(--blue)}
+
+  details.viewer{margin-top:14px;background:#fff;border:2px solid var(--line);border-radius:18px;padding:10px 14px;box-shadow:var(--shadow)}
+  details.viewer summary{cursor:pointer;color:var(--mut)}
   .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-  .s{background:#0c141c;border:1px solid var(--line,#26333f);border-radius:8px;padding:8px}
-  .s .l{font-size:11px;color:var(--mut,#8ea3b5)} .s .v{font-size:18px;font-variant-numeric:tabular-nums}
-  .s.rear{border-color:#37c0a8}
-  .modal{position:fixed;inset:0;background:rgba(4,8,14,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9}
-  .modal.hidden{display:none}
-  .sheet{background:#16203a;border:1px solid var(--line,#26333f);border-radius:16px;padding:22px;max-width:380px;width:100%;text-align:center}
-  .sheet .q{font-size:2rem;font-weight:800;margin:6px 0 14px;font-family:ui-monospace,monospace}
-  .sheet input{width:100%;font-size:1.6rem;text-align:center;padding:12px;border-radius:12px;border:1px solid var(--line,#26333f);background:#0f1830;color:#eaf0ff;font-weight:700}
-  .sheet .row{display:flex;gap:8px;margin-top:12px}
-  .sheet .fb{color:#ff6b6b;min-height:1.3em;margin-top:8px;font-weight:600}
-  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#37c0a8;color:#04140e;
-    padding:10px 18px;border-radius:999px;font-weight:800;opacity:0;transition:.25s;pointer-events:none;z-index:20}
+  .s{background:var(--sky);border:2px solid #dcefff;border-radius:12px;padding:8px}
+  .s .l{font-size:.72rem;color:var(--mut)}.s .v{font-size:1.1rem}
+  .s.rear{background:#e9fbf4;border-color:#bdeede}
+  .slider label{font-size:.85rem;color:var(--mut)} input[type=range]{width:100%;accent-color:var(--mint)}
+  .viewer input[type=text]{width:100%;padding:8px;border-radius:10px;border:2px solid var(--line);font-family:inherit}
+  .viewer .btn{padding:9px 12px;font-size:.9rem}
+
+  /* 충전소 모달 */
+  .modal{position:fixed;inset:0;background:rgba(60,40,20,.35);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .sheet{background:#fff;border-radius:26px;padding:24px;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(80,50,20,.3)}
+  .sheet .cap{color:var(--mut);font-size:.95rem}
+  .sheet .q{font-size:2.2rem;margin:10px 0 16px;color:var(--ink)}
+  .sheet input{width:100%;font-size:1.7rem;text-align:center;padding:14px;border-radius:16px;border:3px solid #ffe0a3;font-family:inherit;background:#fffdf7}
+  .sheet input:focus{outline:none;border-color:var(--sun)}
+  .sheet .row{display:flex;gap:10px;margin-top:14px}
+  .sheet .fb{color:var(--coral);min-height:1.3em;margin-top:8px}
+
+  #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(24px);background:#37c9ad;color:#fff;
+    padding:12px 22px;border-radius:999px;font-size:1.1rem;opacity:0;transition:.25s;pointer-events:none;z-index:20;box-shadow:var(--shadow)}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .nav a{color:#37c0a8;font-size:13px;text-decoration:none}
-  @media(max-width:640px){.main{grid-template-columns:1fr}}
+  body.hit .car{animation:wob .3s}
+  @media(max-width:640px){.play{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="wrap game">
-  <div class="nav">
-    <a href="index.html">← 조종 패널</a>
-    <div id="status" class="status off">연결 안 됨</div>
-  </div>
 
-  <h1 style="margin:0 0 2px">⚡ 수학 연료 꼬리잡기</h1>
-  <p style="color:#8ea3b5;margin:0 0 12px;font-size:.9rem">문제를 풀면 에너지가 찬다. 에너지가 있는 동안만 달릴 수 있다. 뒤를 조심!</p>
+<!-- 귀여운 자동차 SVG (재사용) -->
+<svg style="display:none"><defs><g id="carglyph">
+  <ellipse cx="80" cy="120" rx="70" ry="12" fill="rgba(120,90,50,.12)"/>
+  <rect x="16" y="66" width="128" height="42" rx="18" fill="#ff7a86"/>
+  <path d="M40 68 q10 -26 40 -26 q30 0 40 26 Z" fill="#ffd24a"/>
+  <rect x="52" y="50" width="56" height="20" rx="9" fill="#cdefff"/>
+  <circle cx="66" cy="60" r="5" fill="#3a3230"/><circle cx="94" cy="60" r="5" fill="#3a3230"/>
+  <circle cx="68" cy="58" r="1.6" fill="#fff"/><circle cx="96" cy="58" r="1.6" fill="#fff"/>
+  <circle cx="52" cy="110" r="16" fill="#3a3230"/><circle cx="52" cy="110" r="7" fill="#cfcfcf"/>
+  <circle cx="108" cy="110" r="16" fill="#3a3230"/><circle cx="108" cy="110" r="7" fill="#cfcfcf"/>
+  <circle cx="26" cy="86" r="5" fill="#fff3b0"/>
+</g></defs></svg>
 
-  <div class="hud">
-    <div class="energywrap">
-      <div class="top"><span>에너지 <b id="energyVal">40</b></span><span>충전소에서 문제 풀기 → ⚡</span></div>
-      <div class="track"><div id="energyBar"></div></div>
+<div class="wrap">
+
+  <!-- ===== 시작 화면 ===== -->
+  <section id="startScreen" class="start">
+    <svg class="car bob" viewBox="0 0 160 140"><use href="#carglyph"/></svg>
+    <h1>수학 연료 꼬리잡기</h1>
+    <p class="sub">안녕! 너는 몇 학년이야? 🚗💨</p>
+    <div class="gradepick">
+      <button class="g1" data-grade="e1">초1<small>덧셈·뺄셈</small></button>
+      <button class="g2" data-grade="e2">초2<small>두 자리 계산</small></button>
+      <button class="g3" data-grade="e3">초3<small>곱셈·나눗셈</small></button>
+      <button class="g4" data-grade="e4">초4<small>큰 수·각도</small></button>
+      <button class="g5" data-grade="e5">초5<small>약수·분수</small></button>
+      <button class="g6" data-grade="e6">초6<small>비율·부피</small></button>
+      <button class="g7" data-grade="m1">중1<small>정수·방정식</small></button>
+      <button class="g8" data-grade="m2">중2<small>함수·부등식</small></button>
+      <button class="g9" data-grade="m3">중3<small>제곱근·이차식</small></button>
     </div>
-    <div class="caughtbox"><div class="n" id="coinVal">0</div><div class="l">🪙 코인</div></div>
-    <div class="caughtbox"><div class="n" id="caughtVal">0</div><div class="l">잡힘</div></div>
-  </div>
+    <p class="sub" style="margin-top:16px">🏆 가장 적게 잡힌 사람이 이겨요!</p>
+  </section>
 
-  <div id="fuelWarn" class="hidden">🔋 에너지 없음! 충전소에서 문제를 풀어 충전하세요.</div>
-
-  <div class="main">
-    <div>
-      <div class="dpad">
-        <button id="d-up" class="pad up">▲</button>
-        <button id="d-left" class="pad left">◀</button>
-        <button id="d-right" class="pad right">▶</button>
-        <button id="d-down" class="pad down">▼</button>
+  <!-- ===== 게임 화면 ===== -->
+  <section id="gameScreen" class="hidden">
+    <div class="topbar">
+      <div class="gradechip"><b id="gradeLabel">초3</b> 친구</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="changeGradeBtn" class="btn ghost" style="padding:6px 12px;font-size:.85rem">학년 바꾸기</button>
+        <div id="status" class="status">연결 안 됨</div>
       </div>
     </div>
-    <div class="side">
-      <button id="chargeBtn" class="btn charge">🔧 충전소 (문제 풀기)</button>
-      <div class="slider"><label>학년</label>
-        <select id="grade" style="width:100%;padding:10px;border-radius:8px;background:#0f1830;color:#eaf0ff;border:1px solid #26333f">
-          <option value="lo">1~2학년 (덧셈)</option>
-          <option value="mid" selected>3~4학년 (두자리·구구단)</option>
-          <option value="hi">5~6학년 (곱셈·나눗셈)</option>
-        </select>
-      </div>
-      <div class="slider" style="display:flex;justify-content:space-between;align-items:center"><label>현재 속도</label><b id="speedNow" style="font-size:1.2rem">350</b></div>
-      <button id="upgradeBtn" class="btn" style="background:#f5a623;color:#3a1c00">🛒 속도업</button>
-      <button id="resetBtn" class="btn ghost">새 판 (초기화)</button>
-    </div>
-  </div>
 
-  <details class="viewer">
-    <summary>🔧 센서 뷰어 / 튜닝 (강사용) — 후면 임계값 맞추기</summary>
-    <div class="slider" style="margin-top:10px"><label>후면 붙음 임계값 <b id="threshval">120</b> (이 값보다 작아지면 잡힘)</label>
-      <input id="thresh" type="range" min="30" max="400" step="5" value="120"></div>
-    <div>현재 후면(ir6): <b id="rearNow" style="color:#37c0a8">–</b></div>
-    <div class="sgrid">
-      <div class="s"><div class="l">전면 좌 (ir1)</div><div class="v" id="sv-ir1">–</div></div>
-      <div class="s"><div class="l">전면 중앙 (ir2)</div><div class="v" id="sv-ir2">–</div></div>
-      <div class="s"><div class="l">전면 우 (ir3)</div><div class="v" id="sv-ir3">–</div></div>
-      <div class="s"><div class="l">우측면 (ir4)</div><div class="v" id="sv-ir4">–</div></div>
-      <div class="s"><div class="l">좌측면 (ir5)</div><div class="v" id="sv-ir5">–</div></div>
-      <div class="s rear"><div class="l">후면 ★ (ir6)</div><div class="v" id="sv-ir6">–</div></div>
-      <div class="s"><div class="l">배터리</div><div class="v" id="sv-bat">–</div></div>
+    <div class="hud">
+      <div class="fuel">
+        <div class="top"><span>⚡ 에너지 <b id="energyVal">500</b></span><span>충전소에서 문제 풀기 →</span></div>
+        <div class="gauge"><div id="energyBar"></div></div>
+      </div>
+      <div class="stat coin"><div class="n" id="coinVal">0</div><div class="l">🪙 코인</div></div>
+      <div class="stat goal"><div class="n" id="caughtVal">0</div><div class="l">잡힘 ⬇승리</div></div>
     </div>
-    <div class="slider" style="margin-top:10px">
-      <input id="wsurl" type="text" value="ws://localhost:8080" style="width:100%;padding:8px;border-radius:8px;background:#0f1830;color:#eaf0ff;border:1px solid #26333f">
+
+    <div id="fuelWarn" class="hidden">🔋 에너지가 없어요! 충전소에서 문제를 풀어요</div>
+
+    <div class="play">
+      <div class="padwrap">
+        <div class="dpad">
+          <button id="d-up" class="pad up">▲</button>
+          <button id="d-left" class="pad left">◀</button>
+          <button id="d-right" class="pad right">▶</button>
+          <button id="d-down" class="pad down">▼</button>
+        </div>
+        <div class="carbox"><svg class="car" style="width:96px" viewBox="0 0 160 140"><use href="#carglyph"/></svg></div>
+      </div>
+      <div class="side">
+        <button id="chargeBtn" class="btn mint big charge">🔧 충전소 (문제 풀기)</button>
+        <div class="speedrow"><span>현재 속도</span><b id="speedNow">350</b></div>
+        <button id="upgradeBtn" class="btn sun big">🛒 속도업</button>
+        <button id="resetBtn" class="btn ghost">🔄 새 판 (초기화)</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button id="c-ws" class="btn ghost small">브리지 연결</button>
-      <button id="c-mock" class="btn ghost small">데모(목)</button>
-      <button id="c-disc" class="btn danger small">해제</button>
-    </div>
-  </details>
+
+    <details class="viewer">
+      <summary>🔧 센서 뷰어 / 튜닝 (강사용) — 후면 임계값 맞추기</summary>
+      <div class="slider" style="margin-top:10px"><label>후면 붙음 임계값 <b id="threshval">120</b> (이 값보다 작아지면 잡힘)</label>
+        <input id="thresh" type="range" min="30" max="400" step="5" value="120"></div>
+      <div>현재 후면(ir6): <b id="rearNow" style="color:var(--mint)">–</b></div>
+      <div class="sgrid">
+        <div class="s"><div class="l">전면 좌 (ir1)</div><div class="v" id="sv-ir1">–</div></div>
+        <div class="s"><div class="l">전면 중앙 (ir2)</div><div class="v" id="sv-ir2">–</div></div>
+        <div class="s"><div class="l">전면 우 (ir3)</div><div class="v" id="sv-ir3">–</div></div>
+        <div class="s"><div class="l">우측면 (ir4)</div><div class="v" id="sv-ir4">–</div></div>
+        <div class="s"><div class="l">좌측면 (ir5)</div><div class="v" id="sv-ir5">–</div></div>
+        <div class="s rear"><div class="l">후면 ★ (ir6)</div><div class="v" id="sv-ir6">–</div></div>
+        <div class="s"><div class="l">배터리</div><div class="v" id="sv-bat">–</div></div>
+      </div>
+      <div class="slider" style="margin-top:10px"><input id="wsurl" type="text" value="ws://localhost:8080"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="c-ws" class="btn ghost">브리지 연결</button>
+        <button id="c-mock" class="btn ghost">데모(목)</button>
+        <button id="c-disc" class="btn ghost">해제</button>
+      </div>
+      <div style="margin-top:8px"><a href="index.html" style="color:var(--blue)">← 조종 패널</a></div>
+    </details>
+  </section>
 </div>
 
+<!-- 충전소 모달 -->
 <div id="repairModal" class="modal hidden">
   <div class="sheet">
-    <div style="color:#8ea3b5;font-size:.85rem">⚡ 충전소 — 맞히면 +30 에너지, 계속 풀 수 있어요</div>
+    <div class="cap">⚡ 충전소 — 맞히면 +500 에너지, +1 코인. 계속 풀 수 있어요!</div>
     <div class="q" id="probText">?</div>
-    <input id="probInput" type="number" inputmode="numeric" placeholder="?">
+    <input id="probInput" type="number" inputmode="numeric" placeholder="정답은?">
     <div class="fb" id="probFb"></div>
     <div class="row">
-      <button id="probOk" class="btn">충전 ⚡</button>
+      <button id="probOk" class="btn mint big">충전 ⚡</button>
       <button id="probClose" class="btn ghost">닫기</button>
     </div>
   </div>
@@ -137,6 +234,7 @@
 
 <script src="js/protocol.js"></script>
 <script src="js/transport.js"></script>
+<script src="js/problems.js"></script>
 <script src="js/tag.js"></script>
 </body>
 </html>

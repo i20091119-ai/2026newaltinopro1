@@ -13,11 +13,12 @@
   const STREAM_MS = 50;                 // 20 tick/s
 
   // ---- 에너지 경제 (모두 현장 조절용 상수) ----
-  const ENERGY_MAX = 2000;             // 최대 저장 = 문제 4개치(40초)
-  const DRAIN_PER_SEC = 50;            // 주행 중 초당 소모
-  const GAIN_PER_SOLVE = 500;          // 문제 1개 정답 시 충전 → 1문제 = 500/50 = 10초
-  const CAUGHT_PENALTY = 250;          // 뒤에 붙잡히면 감소(5초치)
-  let energy = 500;                    // 시작 = 문제 1개치
+  const SECONDS_PER_SOLVE = 30;        // 문제 1개로 달릴 수 있는 시간(초)
+  const GAIN_PER_SOLVE = 500;          // 문제 1개 정답 시 충전
+  const DRAIN_PER_SEC = GAIN_PER_SOLVE / SECONDS_PER_SOLVE; // ≈16.7/초 → 1문제 = 30초
+  const ENERGY_MAX = 2000;             // 최대 저장 = 문제 4개치(약 120초)
+  const CAUGHT_PENALTY = 100;          // 뒤에 붙잡히면 감소(약 6초치)
+  let energy = 500;                    // 시작 = 문제 1개치(30초)
 
   // ---- 코인 경제 (속도업) ----
   let coins = 0;
@@ -36,6 +37,9 @@
 
   // ---- 주행 의도 (에너지로 게이팅) ----
   const intent = { drive: 0, steer: 0 }; // drive: -1/0/1
+
+  // ---- 선택 학년 (시작 화면에서 결정) ----
+  let selectedGrade = 'e3';
 
   const $ = (id) => document.getElementById(id);
   const setStatus = (t, c) => { const e = $('status'); e.textContent = t; e.className = 'status ' + (c || ''); };
@@ -132,22 +136,17 @@
     el.addEventListener('mouseleave', (e) => { if (el.classList.contains('pressed')) u(e); });
   }
 
-  // ---- 충전소: 문제 풀면 에너지 +GAIN ----
-  let curAnswer = null;
+  // ---- 충전소: 문제 풀면 에너지 +GAIN (학년별 풀에서 랜덤 출제) ----
+  let curAnswer = null, lastIdx = -1;
   function genProblem() {
-    const grade = $('grade').value;
-    const r = (n) => 1 + Math.floor(Math.random() * n);
-    let text, ans;
-    if (grade === 'lo') { const a = r(9), b = r(9); text = `${a} + ${b} = ?`; ans = a + b; }
-    else if (grade === 'mid') {
-      if (Math.random() < 0.5) { const a = 10 + r(80), b = 10 + r(80); text = `${a} + ${b} = ?`; ans = a + b; }
-      else { const a = r(9), b = r(9); text = `${a} × ${b} = ?`; ans = a * b; }
-    } else {
-      if (Math.random() < 0.5) { const a = 11 + r(30), b = r(9); text = `${a} × ${b} = ?`; ans = a * b; }
-      else { const b = r(9), q = r(12); text = `${b * q} ÷ ${b} = ?`; ans = q; }
-    }
-    curAnswer = ans;
-    $('probText').textContent = text;
+    const pool = window.AltinoProblems.GRADE_POOLS[selectedGrade]
+              || window.AltinoProblems.GRADE_POOLS.e3;
+    let i;
+    do { i = Math.floor(Math.random() * pool.length); } while (pool.length > 1 && i === lastIdx);
+    lastIdx = i;
+    const p = pool[i];
+    curAnswer = p.a;
+    $('probText').textContent = p.q;
     $('probInput').value = ''; $('probFb').textContent = '';
     $('repairModal').classList.remove('hidden'); $('probInput').focus();
   }
@@ -187,7 +186,24 @@
     transport = null; setStatus('연결 안 됨', 'off');
   }
 
+  function pickGrade(g) {
+    selectedGrade = g;
+    const L = window.AltinoProblems.GRADE_LABELS[g] || g;
+    if ($('gradeLabel')) $('gradeLabel').textContent = L;
+    $('startScreen').classList.add('hidden');
+    $('gameScreen').classList.remove('hidden');
+  }
+
   function init() {
+    // 시작 화면 학년 선택
+    document.querySelectorAll('[data-grade]').forEach(b => {
+      b.addEventListener('click', () => pickGrade(b.dataset.grade));
+    });
+    $('changeGradeBtn') && $('changeGradeBtn').addEventListener('click', () => {
+      $('gameScreen').classList.add('hidden');
+      $('startScreen').classList.remove('hidden');
+    });
+
     bindHold($('d-up'),    () => intent.drive = 1,  () => intent.drive = 0);
     bindHold($('d-down'),  () => intent.drive = -1, () => intent.drive = 0);
     bindHold($('d-left'),  () => intent.steer = -127, () => intent.steer = 0);
