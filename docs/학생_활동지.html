@@ -4,39 +4,45 @@
   @font-face{font-family:'Esamanru';src:url('esamanru-medium.woff2') format('woff2');font-weight:500}
   @font-face{font-family:'Esamanru';src:url('esamanru-bold.woff2') format('woff2');font-weight:700}
   @font-face{font-family:'Esamanru';src:url('esamanru-light.woff2') format('woff2');font-weight:300}
-  @page{size:A4;margin:10mm}
+  @page{size:A4;margin:14mm 11mm 8mm 11mm}
   *{box-sizing:border-box}
-  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0;font-size:12px}
-  h1{font-weight:700;font-size:21px;margin:0}
-  .sub{color:#9b8f86;font-weight:300;font-size:11px;margin:1px 0 6px}
-  .story{background:linear-gradient(180deg,#fff3e0,#fff);border:2px solid #ffe0a3;border-radius:10px;padding:7px 11px;font-size:11.5px;line-height:1.5;margin-bottom:8px}
-  .step{border:2px solid #f0e6d8;border-radius:12px;padding:8px 12px;margin-bottom:7px;page-break-inside:avoid}
-  .step h2{font-size:13px;margin:0 0 5px;color:#fff;display:inline-block;padding:2px 10px;border-radius:7px}
+  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0;font-size:13.5px}
+  h1{font-weight:700;font-size:24px;margin:0}
+  .sub{color:#9b8f86;font-weight:300;font-size:12px;margin:2px 0 10px}
+  .story{background:linear-gradient(180deg,#fff3e0,#fff);border:2px solid #ffe0a3;border-radius:12px;padding:11px 14px;font-size:13px;line-height:1.65;margin-bottom:12px}
+  .step{border:2px solid #f0e6d8;border-radius:13px;padding:12px 15px;margin-bottom:11px;page-break-inside:avoid}
+  .step h2{font-size:14.5px;margin:0 0 8px;color:#fff;display:inline-block;padding:3px 12px;border-radius:8px}
   .s1 h2{background:#5ea0ff}.s2 h2{background:#37c9ad}.s3 h2{background:#ffb23e;color:#5a3200}.s4 h2{background:#ff7a86}.s5 h2{background:#b085ff}
-  .blank{display:inline-block;min-width:64px;border-bottom:2.5px solid #3a3230;text-align:center;font-weight:700;color:#b085ff;height:19px;vertical-align:bottom}
+  .blank{display:inline-block;min-width:76px;border-bottom:2.5px solid #3a3230;text-align:center;font-weight:700;color:#b085ff;height:23px;vertical-align:bottom}
   .blank.w{min-width:110px}.blank.s{min-width:42px}
-  .bigbox{display:inline-block;border:2.5px solid #37c9ad;border-radius:9px;min-width:88px;height:34px;vertical-align:middle;background:#effbf6;margin-left:4px}
+  .bigbox{display:inline-block;border:2.5px solid #37c9ad;border-radius:10px;min-width:104px;height:42px;vertical-align:middle;background:#effbf6;margin-left:5px}
   b{font-weight:700}
-  .hint{background:#f6fbff;border:1px solid #d3e8ff;border-radius:7px;padding:4px 9px;font-size:10.5px;margin-top:5px;color:#5578a8}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;line-height:2.1}
-  table{border-collapse:collapse;font-size:11px;margin:3px 0}
-  th,td{border:1.5px solid #e8dcc8;padding:3px 12px;text-align:center}th{background:#fff3e0;color:#9b8f86}
-  .blocks{display:flex;flex-direction:column;gap:5px;margin-top:5px}
+  .hint{background:#f6fbff;border:1px solid #d3e8ff;border-radius:8px;padding:7px 11px;font-size:12px;margin-top:8px;color:#5578a8}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;line-height:2.4}
+  table{border-collapse:collapse;font-size:12.5px;margin:4px 0}
+  th,td{border:1.5px solid #e8dcc8;padding:4.5px 14px;text-align:center}th{background:#fff3e0;color:#9b8f86}
+  .blocks{display:flex;flex-direction:column;gap:8px;margin-top:8px}
   .blockrow{display:flex;align-items:center;gap:8px}
-  .ordbox{width:30px;height:30px;border:2.5px solid #3a3230;border-radius:8px;flex:none;background:#fff}
-  .blk{flex:1;border:2px solid;border-radius:9px;padding:6px 11px;font-size:11.5px}
+  .ordbox{width:38px;height:38px;border:2.5px solid #3a3230;border-radius:9px;flex:none;background:#fff}
+  .blk{flex:1;border:2px solid;border-radius:10px;padding:9px 13px;font-size:13px}
   .b-blue{border-color:#bcd8ff;background:#f4faff}.b-mint{border-color:#bdeede;background:#effbf6}
   .b-grape{border-color:#dcc8ff;background:#f8f4ff}.b-sun{border-color:#ffe0a3;background:#fff8ec}.b-coral{border-color:#f6c9c4;background:#fff2f1}
-  .blk .in{display:inline-block;min-width:52px;border-bottom:2px solid #b085ff;text-align:center;height:15px;vertical-align:bottom}
-  .name{float:right;font-size:12px}
+  .blk .in{display:inline-block;min-width:60px;border-bottom:2px solid #b085ff;text-align:center;height:18px;vertical-align:bottom}
+  .name{font-size:13px;white-space:nowrap}
   .name .blank{min-width:90px}
-  .foot{color:#9b8f86;font-size:9.5px;font-weight:300;margin-top:4px;text-align:center}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .foot{color:#9b8f86;font-size:10px;font-weight:300;margin-top:8px;text-align:center}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 </style></head>
 <body>
-  <div class="name">이름 <span class="blank"></span> &nbsp; 학년 <span class="blank s"></span></div>
-  <h1>🚚 알티노 자율배송 — 임무 기록 활동지</h1>
-  <p class="sub">경남수학문화관 · 자율배송 SW체험 · 숫자를 여기에 쓰고, 마지막에 앱의 블록에 옮겨 넣어요!</p>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:2px">
+    <img src="gnmc-logo.png" alt="" style="height:44px" onerror="this.style.display='none'">
+    <div style="flex:1">
+      <h1>🚚 알티노 자율배송 — 임무 기록 활동지</h1>
+      <p class="sub" style="margin-bottom:0">경남수학문화관 · 자율배송 SW체험 · 숫자를 여기에 쓰고, 마지막에 앱의 블록에 옮겨 넣어요!</p>
+    </div>
+    <div class="name">이름 <span class="blank"></span>&ensp;학년 <span class="blank s"></span></div>
+  </div>
+  <div style="height:8px"></div>
 
   <div class="story">☀️ <b>긴급! 태양풍 경보!</b> GPS와 통신이 교란되어 배송차가 길을 잃었어요. 다행히 이 차는 <b>라이다로 벽을</b>, <b>빛(조도)으로 터널을</b> 볼 수 있어요. 여러분이 센서 숫자로 <b>주행 코드의 빈칸</b>을 복구하면, 차가 스스로 달려 물건을 배송할 수 있습니다!</div>
 
@@ -56,8 +62,9 @@
   <div class="two">
     <div class="step s3">
       <h2>③ 터널 소리 미션</h2>
-      <div class="row">계이름 <span class="blank s"></span> · <span class="blank s"></span> 를</div>
-      <div class="row"><b>반복</b> <span class="bigbox" style="min-width:60px"></span> 번!</div>
+      <div class="row">계이름 <span class="blank"></span> · <span class="blank"></span> 를</div>
+      <div class="row"><b>반복</b> <span class="bigbox" style="min-width:70px"></span> 번!</div>
+      <div class="hint">💡 터널을 지날 때 차의 부저가 이 소리를 내요.<br>예) 도·미를 3번! 🎵</div>
     </div>
     <div class="step s4">
       <h2>④ 배송지 문자</h2>
