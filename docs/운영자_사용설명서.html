@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+  @font-face{font-family:'Esamanru';src:url('esamanru-medium.woff2') format('woff2');font-weight:500}
+  @font-face{font-family:'Esamanru';src:url('esamanru-bold.woff2') format('woff2');font-weight:700}
+  @font-face{font-family:'Esamanru';src:url('esamanru-light.woff2') format('woff2');font-weight:300}
+  @page{size:A4;margin:11mm}
+  *{box-sizing:border-box}
+  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0}
+  h1{font-weight:700;font-size:20px;margin:0 0 2px}
+  .sub{color:#9b8f86;font-weight:300;font-size:11px;margin:0 0 8px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .card{border:2px solid #f0e6d8;border-radius:10px;padding:8px 11px;font-size:11px;line-height:1.55}
+  .card h2{font-size:12.5px;margin:0 0 4px;color:#fff;background:#5ea0ff;display:inline-block;padding:2px 8px;border-radius:6px}
+  .c2 h2{background:#37c9ad}.c3 h2{background:#ff7a86}.c4 h2{background:#b085ff}.c5 h2{background:#ffb23e;color:#5a3200}
+  ol{margin:4px 0 0 16px;padding:0}li{margin-bottom:2px}
+  b{font-weight:700}.hl{background:#fff3cf;border-radius:4px;padding:0 3px}
+  .full{grid-column:1/3}
+  .tip{background:#f6fbff;border:1px solid #d3e8ff;border-radius:8px;padding:6px 9px;font-size:10.5px;margin-top:6px}
+  .warn{background:#fff0f1;border:1px solid #ffc9cf;border-radius:8px;padding:6px 9px;font-size:10.5px}
+  code{background:#f3ece0;padding:0 4px;border-radius:4px}
+  .foot{color:#9b8f86;font-size:9.5px;font-weight:300;margin-top:6px;text-align:center}
+</style></head>
+<body>
+  <h1>알티노 수학놀이 — 운영자(강사) 사용설명서</h1>
+  <p class="sub">경남수학문화관 · 갤럭시탭 SW체험 · 태블릿 1대 = 알티노 1대</p>
+
+  <div class="grid">
+    <div class="card full">
+      <h2>0. 준비 (처음 1회)</h2>
+      <ol>
+        <li>태블릿에 <b>알티노 컨트롤 APK</b> 설치(설정 → 출처를 알 수 없는 앱 허용).</li>
+        <li>태블릿 <b>[설정 → 블루투스]</b>에서 이 태블릿이 쓸 알티노를 <b>페어링</b>. (차 바닥 스티커 번호 예: <span class="hl">BD77</span> 확인) — 앱 안의 <b>[📶 설정]</b> 버튼으로 바로 이동 가능.</li>
+        <li>앱 실행 → 홈에서 <b>① 자율주행 코딩</b> / <b>② 수학 연료 꼬리잡기</b> 선택.</li>
+      </ol>
+      <div class="tip">🔗 <b>연결</b>: 상단 [🔗] → 목록에서 스티커 번호로 검색·선택. 페어링된 알티노가 1대면 자동 연결. 연결이 끊기면 <b>자동 재연결</b>(3초). 🔋 값이 낮으면(빨강) 배터리 교체.</div>
+    </div>
+
+    <div class="card c2">
+      <h2>② 수학 연료 꼬리잡기 (도로 매트)</h2>
+      <ol>
+        <li>학년 선택(초1~중3).</li>
+        <li><b>충전소</b>에서 문제 풀기 → <b>에너지 +500</b>(≈30초 주행분) · 코인 +1.</li>
+        <li>에너지가 있는 동안만 D패드로 <b>운전</b>. 다 쓰면 다시 충전.</li>
+        <li>뒤에 다른 차가 붙으면 삐-+<b>잡힘</b>+에너지 감소.</li>
+        <li>코인으로 <b>속도업</b> 구매(350→650).</li>
+      </ol>
+      <b>🏆 가장 적게 잡힌 사람이 승리</b> (외부 타이머로 시간 관리).
+      <div class="tip">보정: 하단 [센서 뷰어]에서 <b>후면 임계값</b>을 실제 근접값(예 60~70) 살짝 위로.</div>
+    </div>
+
+    <div class="card c3">
+      <h2>① 자율배송 코딩 (n자 코스·6단계)</h2>
+      <ol>
+        <li><b>①빛(수학)</b>: 밝은 곳·터널 안 🔆조도 <b>두 값 측정</b> → <span class="hl">사이값(평균)</span> 계산해 입력. → 터널 감지 기준.</li>
+        <li><b>②암호</b>: 학년(초4·중1·고1) 문제 풀어 복구 코드.</li>
+        <li><b>③소리</b>: 반복 횟수 + 계이름 2개(터널 미션).</li>
+        <li><b>④배송지</b>: 표에서 문자(N/E/D/W/S) 확인.</li>
+        <li><b>⑤조립(코딩)</b>: 값 블록 4개를 <b>실행 순서</b>대로 배치(조도→주행→소리→문자).</li>
+        <li><b>⑥출발!</b> 자동 벽추종 주행 → 터널 소리 🎵 → 도착 문자 표시.</li>
+      </ol>
+      <div class="tip">보정: ⑥실행의 [🔧벽추종 보정]에서 <b>TOF 임계·속도·조향</b>을 트랙에 맞게. 상단 <b>TOF</b> 실시간 값 참고.</div>
+    </div>
+
+    <div class="card c4 full">
+      <h2>문제 해결 (자주 묻는 것)</h2>
+      <div class="grid" style="gap:6px">
+        <div>• <b>목록에 알티노가 안 떠요</b> → [📶 설정]에서 먼저 페어링 → 앱으로 돌아와 [🔄 새로고침].</div>
+        <div>• <b>차가 안 움직여요</b> → 상단 🔗 연결됨 확인, 🔋 배터리 확인, (게임)에너지가 0인지 확인.</div>
+        <div>• <b>엉뚱한 차가 움직여요</b> → 🔗 → 이 태블릿의 스티커 번호로 다시 선택.</div>
+        <div>• <b>벽에 부딪혀요(코딩)</b> → 벽 감지 거리를 키우고 속도를 낮춰요.</div>
+        <div>• <b>소리가 안 나요(코딩)</b> → 차량 부저 음량/음계 코드 확인(강사 문의).</div>
+        <div>• <b>다음 학생</b> → 게임은 [새 판], 코딩은 [← 홈]에서 다시 시작.</div>
+      </div>
+    </div>
+
+    <div class="card c5 full">
+      <h2>안전</h2>
+      바퀴가 뜬 상태에서 <b>낮은 속도로 먼저</b> 방향 확인 → 정상이면 매트/트랙에 올려요. 주행 중 화면을 벗어나거나 앱을 가리면 <b>자동 정지</b>합니다.
+    </div>
+  </div>
+  <p class="foot">알티노 수학놀이 · 문의: 개발 담당 · 값(임계·보정)은 실기에서 조정해 사용하세요</p>
+</body></html>
