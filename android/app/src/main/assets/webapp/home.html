@@ -14,10 +14,24 @@
   body{font-family:'Esamanru','Pretendard','Apple SD Gothic Neo',system-ui,sans-serif;font-weight:500;color:var(--ink);
     background:linear-gradient(rgba(255,247,234,.45),rgba(255,247,234,.45)), url('assets/bg.png') center/cover no-repeat, var(--cream);
     height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;user-select:none}
-  .brand{display:flex;align-items:center;gap:18px;margin-bottom:6px}
-  .brand .mascot{width:160px;height:auto;filter:drop-shadow(0 8px 10px rgba(120,90,50,.2))}
-  h1{font-weight:700;font-size:3.6rem;margin:0}
-  .sub{color:var(--mut);font-size:1.3rem;margin:6px 0 30px;font-weight:300}
+  .brand{display:flex;align-items:center;gap:22px;margin-bottom:8px}
+  .brand .mascot{width:210px;height:auto;filter:drop-shadow(0 10px 12px rgba(120,90,50,.22));transform-origin:50% 90%;animation:wobble 2.6s ease-in-out infinite}
+  h1{font-weight:700;font-size:5rem;margin:0;line-height:1.05}
+  .sub{color:var(--mut);font-size:1.45rem;margin:8px 0 34px;font-weight:300}
+  /* 흔들흔들 애니메이션 */
+  @keyframes wobble{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}}
+  @keyframes floaty{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-18px) rotate(6deg)}}
+  .cards .card{animation:wobble 3.4s ease-in-out infinite}
+  .cards .card:nth-child(2){animation-duration:3.9s}
+  .float{position:absolute;pointer-events:none;filter:drop-shadow(0 6px 8px rgba(120,90,50,.18));opacity:.95;z-index:0}
+  .float.f1{width:92px;top:7%;left:6%;animation:floaty 3.2s ease-in-out infinite}
+  .float.f2{width:82px;top:10%;right:7%;animation:floaty 4.1s ease-in-out .4s infinite}
+  .float.f3{width:78px;bottom:9%;left:7%;animation:floaty 3.7s ease-in-out .2s infinite}
+  .float.f4{width:96px;bottom:8%;right:8%;animation:floaty 4.5s ease-in-out .6s infinite}
+  .float.f5{width:70px;top:44%;left:3%;animation:floaty 3.4s ease-in-out .8s infinite}
+  .float.f6{width:70px;top:40%;right:3%;animation:floaty 4.0s ease-in-out .1s infinite}
+  .cards{position:relative;z-index:1}
+  @media (prefers-reduced-motion:reduce){.brand .mascot,.cards .card,.float{animation:none}}
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:22px;width:100%;max-width:940px}
   .card{border:0;border-radius:28px;padding:32px 28px;text-align:left;cursor:pointer;color:#fff;box-shadow:var(--shadow);
     font-family:inherit;transition:transform .1s;min-height:280px;display:flex;flex-direction:column}
@@ -34,6 +48,13 @@
 </style>
 </head>
 <body>
+  <img class="float f1" src="assets/coin.png" alt="">
+  <img class="float f2" src="assets/trophy.png" alt="">
+  <img class="float f3" src="assets/speedup.png" alt="">
+  <img class="float f4" src="assets/energy.png" alt="">
+  <img class="float f5" src="assets/mascot-happy.png" alt="">
+  <img class="float f6" src="assets/caught.png" alt="">
+
   <div class="brand">
     <img class="mascot" src="assets/mascot.png" alt="마스코트">
     <div><h1>알티노 수학놀이</h1></div>
@@ -61,3 +82,5 @@
   <div class="foot"><a href="index.html">조종 패널(개발용)</a></div>
 </body>
 </html>
+
+<!-- pages deploy trigger -->
