@@ -139,9 +139,12 @@
     state.displayMode = 0xFF; for (let i = 0; i < 8; i++) state.dot[i] = rows[i];
   }
   function clearLetter() { state.dotClear(); }
-  async function soundMission() {  // 터널 미션: 도·미 3회 (부저)
+  // APK Piano 매핑: 반음=코드+1, 37=도(C) → 39=레, 41=미, 42=파, 44=솔, 46=라, 48=시, 49=높은도
+  const NOTE_DO = 37, NOTE_MI = 41;
+  async function soundMission() {  // 터널 미션: 도→미 3회 (차량 부저), 0.5초 간격 (원본 인수인계서와 동일)
     for (let i = 0; i < 3 && running; i++) {
-      state.soundSet(41); await sleep(300); state.soundSet(37); await sleep(300);
+      state.soundSet(NOTE_DO); await sleep(500);
+      state.soundSet(NOTE_MI); await sleep(500);
     }
     state.soundSet(0);
   }
