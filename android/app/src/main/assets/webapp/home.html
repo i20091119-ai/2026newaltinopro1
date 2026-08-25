@@ -12,12 +12,12 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0}
   body{font-family:'Esamanru','Pretendard','Apple SD Gothic Neo',system-ui,sans-serif;font-weight:500;color:var(--ink);
-    background:radial-gradient(900px 400px at 85% -5%,#ffe6c2,transparent 60%),radial-gradient(700px 500px at 0% 110%,#d8f0ff,transparent 55%),var(--cream);
+    background:linear-gradient(rgba(255,247,234,.45),rgba(255,247,234,.45)), url('assets/bg.png') center/cover no-repeat, var(--cream);
     height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;user-select:none}
-  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-  .brand .mascot{width:96px;height:96px}
-  h1{font-weight:700;font-size:2.4rem;margin:0}
-  .sub{color:var(--mut);font-size:1.15rem;margin:2px 0 26px;font-weight:300}
+  .brand{display:flex;align-items:center;gap:18px;margin-bottom:6px}
+  .brand .mascot{width:160px;height:auto;filter:drop-shadow(0 8px 10px rgba(120,90,50,.2))}
+  h1{font-weight:700;font-size:3.6rem;margin:0}
+  .sub{color:var(--mut);font-size:1.3rem;margin:6px 0 30px;font-weight:300}
   .cards{display:grid;grid-template-columns:1fr 1fr;gap:22px;width:100%;max-width:940px}
   .card{border:0;border-radius:28px;padding:32px 28px;text-align:left;cursor:pointer;color:#fff;box-shadow:var(--shadow);
     font-family:inherit;transition:transform .1s;min-height:280px;display:flex;flex-direction:column}
@@ -35,15 +35,7 @@
 </head>
 <body>
   <div class="brand">
-    <svg class="mascot" viewBox="0 0 160 140">
-      <ellipse cx="80" cy="120" rx="60" ry="10" fill="rgba(120,90,50,.12)"/>
-      <rect x="16" y="66" width="128" height="42" rx="18" fill="#5ea0ff"/>
-      <path d="M40 68 q10 -26 40 -26 q30 0 40 26 Z" fill="#ffd24a"/>
-      <rect x="52" y="50" width="56" height="20" rx="9" fill="#cdefff"/>
-      <circle cx="66" cy="60" r="5" fill="#3a3230"/><circle cx="94" cy="60" r="5" fill="#3a3230"/>
-      <circle cx="52" cy="110" r="15" fill="#3a3230"/><circle cx="52" cy="110" r="6" fill="#cfcfcf"/>
-      <circle cx="108" cy="110" r="15" fill="#3a3230"/><circle cx="108" cy="110" r="6" fill="#cfcfcf"/>
-    </svg>
+    <img class="mascot" src="assets/mascot.png" alt="마스코트">
     <div><h1>알티노 수학놀이</h1></div>
   </div>
   <p class="sub">무엇을 하고 놀까요? 🚗💨</p>

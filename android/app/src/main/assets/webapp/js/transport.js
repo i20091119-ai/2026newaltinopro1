@@ -99,8 +99,8 @@ class MockTransport extends BaseTransport {
 //   JS -> 네이티브 : AltinoNative.sendFrame(base64) 로 26바이트 프레임 전송
 class AndroidBridgeTransport extends BaseTransport {
   static get supported() { return typeof window !== 'undefined' && !!window.AltinoNative; }
-  async connect() {
-    if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입(래퍼 앱 아님)');
+  _attach() {
+    if (this._attached) return; this._attached = true;
     window.__altinoOnData = (b64) => {
       const bin = atob(b64); const u = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
@@ -110,8 +110,21 @@ class AndroidBridgeTransport extends BaseTransport {
       this.connected = (s === 'connected');
       this._emit('status', s);
     };
+  }
+  // 페어링된 기기 목록 [{name,address}] — 여러 알티노 중 선택용
+  listDevices() {
+    try { return JSON.parse(window.AltinoNative.listDevices() || '[]'); } catch (e) { return []; }
+  }
+  async connect() { // 이름에 altino/neo 있는 기기 자동 선택(단일 기기용)
+    if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입(래퍼 앱 아님)');
+    this._attach();
     if (typeof window.AltinoNative.connect === 'function') window.AltinoNative.connect();
-    // 실제 연결 확정은 네이티브의 __altinoOnStatus('connected') 콜백에서 이뤄짐
+    // 실제 연결 확정은 네이티브의 __altinoOnStatus('connected') 콜백에서
+  }
+  async connectTo(address) { // 특정 MAC으로 연결(다중 기기 선택)
+    if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입');
+    this._attach();
+    if (typeof window.AltinoNative.connectTo === 'function') window.AltinoNative.connectTo(address);
   }
   async send(u8) {
     let s = ''; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);

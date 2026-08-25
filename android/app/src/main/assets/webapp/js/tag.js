@@ -79,6 +79,8 @@
     if (soundTicks > 0 && --soundTicks === 0) state.soundSet(0);
     if (ledTicks > 0 && --ledTicks === 0) state.ledSet(0);
     if (cooldown > 0) cooldown--;
+    if (oopsTicks > 0) oopsTicks--;
+    applyMood();
 
     updateEnergyUI();
     if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
@@ -98,13 +100,23 @@
   function updateShopUI() {
     if ($('coinVal')) $('coinVal').textContent = coins;
     if ($('speedNow')) $('speedNow').textContent = speedNow();
-    const btn = $('upgradeBtn'); if (!btn) return;
+    const btn = $('upgradeBtn'), t = $('upgradeText'); if (!btn || !t) return;
     if (speedTier >= SPEED_TIERS.length - 1) {
-      btn.textContent = '🏁 최고 속도!'; btn.disabled = true;
+      t.textContent = '최고 속도!'; btn.disabled = true;
     } else {
       const cost = UPGRADE_COST[speedTier];
-      btn.textContent = `🛒 속도업 ${SPEED_TIERS[speedTier + 1]} (코인 ${cost})`;
+      t.textContent = `속도업 ${SPEED_TIERS[speedTier + 1]} (코인 ${cost})`;
       btn.disabled = coins < cost;
+    }
+  }
+
+  // 마스코트 표정: 주행=happy, 잡힘 순간=oops, 에너지0=tired
+  let oopsTicks = 0, lastMood = '';
+  function applyMood() {
+    const mood = oopsTicks > 0 ? 'oops' : (energy <= 0 ? 'tired' : 'happy');
+    if (mood !== lastMood) {
+      lastMood = mood;
+      const el = $('gameCar'); if (el) el.src = 'assets/mascot-' + mood + '.png';
     }
   }
 
@@ -130,6 +142,7 @@
       energy = Math.max(0, energy - CAUGHT_PENALTY);
       sfx('caught');
       beepFlash();
+      oopsTicks = Math.round(800 / STREAM_MS);
       armed = false; cooldown = MIN_INTERVAL_TICKS;
     }
     if (!armed && rear > rearThresh + RELEASE_GAP) armed = true;
@@ -183,25 +196,64 @@
   function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1200); }
 
   // ---- 연결 ----
-  async function connect(kind) {
+  async function connect(kind, addr) {
     await disconnect();
     try {
-      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); await transport.connect({}); }
+      if (kind === 'native') {
+        transport = new T.AndroidBridgeTransport();
+        if (addr) { setStatus('🔗 연결 중…', 'pending'); await transport.connectTo(addr); }
+        else { setStatus('🔗 연결 중…', 'pending'); await transport.connect(); }
+      }
       else if (kind === 'ws') { transport = new T.WebSocketTransport(); await transport.connect({ url: $('wsurl').value.trim() }); }
       else { transport = new T.MockTransport(); await transport.connect({}); }
       transport.on('status', (s) => {
-        if (s === 'connected') setStatus('연결됨 ✓', 'ok');
-        else if (s === 'disconnected') setStatus('연결 끊김', 'off');
-        else setStatus('오류: ' + s, 'err');
+        if (s === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
+        else if (s === 'disconnected') setStatus('🔗 연결 끊김', 'off');
+        else setStatus('⚠ ' + connErr(s), 'err');
       });
       transport.on('data', (bytes) => { for (const f of assembler.push(bytes)) onSensor(f); });
-      setStatus('연결됨 ✓', 'ok'); startStream();
-    } catch (e) { setStatus('연결 실패: ' + e.message, 'err'); transport = null; }
+      if (kind !== 'native') setStatus('🔗 연결됨 ✓', 'ok'); // native는 __altinoOnStatus 콜백에서 확정
+    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; }
   }
+
+  // 네이티브 오류 코드 → 사용자 안내
+  function connErr(s) {
+    const m = {
+      'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜주세요',
+      'error:permission': '블루투스 권한 필요', 'error:no-paired-device': '페어링된 기기 없음',
+      'error:connect-failed': '연결 실패(다시 시도)', 'error:bad-address': '잘못된 주소',
+    };
+    return m[s] || s.replace('error:', '');
+  }
+
+  // 연결 모달
+  function openConn() {
+    const list = $('devList'), hint = $('connHint');
+    list.innerHTML = '';
+    if (T.AndroidBridgeTransport.supported) {
+      const devs = new T.AndroidBridgeTransport().listDevices();
+      if (!devs.length) {
+        hint.textContent = '페어링된 기기가 없어요. 태블릿 [설정 → 블루투스]에서 알티노를 먼저 페어링하세요.';
+      } else {
+        hint.textContent = '연결할 알티노를 선택하세요. (여러 대면 이 태블릿의 차 번호를 확인!)';
+        devs.forEach(d => {
+          const b = document.createElement('button');
+          b.className = 'btn ghost'; b.style.textAlign = 'left';
+          b.innerHTML = `🚗 <b>${d.name || '(이름없음)'}</b><br><span style="font-size:.8rem;color:#9b8f86">${d.address}</span>`;
+          b.onclick = () => { connect('native', d.address); closeConn(); };
+          list.appendChild(b);
+        });
+      }
+    } else {
+      hint.textContent = '브라우저에서는 실제 블루투스가 안 돼요. 데모(목)로 UI를 테스트하세요.';
+    }
+    $('connModal').classList.remove('hidden');
+  }
+  function closeConn() { $('connModal').classList.add('hidden'); }
   async function disconnect() {
-    stopStream(); state.stopAll();
+    state.stopAll();
     if (transport) { try { await transport.send(P.buildFrame(state)); } catch (e) {} try { await transport.disconnect(); } catch (e) {} }
-    transport = null; setStatus('연결 안 됨', 'off');
+    transport = null; setStatus('🔗 연결 안 됨', 'off');
   }
 
   function pickGrade(g) {
@@ -245,12 +297,20 @@
     $('c-mock').addEventListener('click', () => connect('mock'));
     $('c-disc').addEventListener('click', () => disconnect());
 
+    // 연결 모달
+    $('status').addEventListener('click', openConn);
+    $('connClose').addEventListener('click', closeConn);
+    $('connRefresh').addEventListener('click', openConn);
+    $('connMock').addEventListener('click', () => { connect('mock'); closeConn(); });
+    $('connDisc').addEventListener('click', () => { disconnect(); openConn(); });
+
     window.addEventListener('blur', () => intent.drive = 0);
     document.addEventListener('visibilitychange', () => { if (document.hidden) intent.drive = 0; });
 
     updateEnergyUI();
+    startStream();                       // 게임 루프는 항상 가동(연결 전에도 UI 동작), 전송은 연결 시에만
     if (T.AndroidBridgeTransport.supported) connect('native');
-    else setStatus('연결 안 됨', 'off');
+    else setStatus('🔗 연결 안 됨', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);
 })();
