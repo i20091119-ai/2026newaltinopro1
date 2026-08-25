@@ -86,7 +86,7 @@
       <span class="dot-step">1 빛</span><span class="dot-step">2 암호</span><span class="dot-step">3 소리</span><span class="dot-step">4 배송지</span><span class="dot-step">5 조립</span><span class="dot-step">6 실행</span>
     </div>
     <div class="row">
-      <span class="chip">🔆<b id="cdsNow">–</b> · TOF <b id="tofNow">–</b></span>
+      <span class="chip">🔆<b id="cdsNow">–</b> · TOF <b id="tofNow">–</b> · 옆 <b id="sideNow">–</b></span>
       <span id="battChip" class="status" style="display:none">🔋 –</span>
       <button id="connBtn" class="btn ghost" style="padding:6px 10px;font-size:.85rem">🔗 연결</button>
       <button id="btSettings" class="btn ghost" style="padding:6px 10px;font-size:.85rem">📶 설정</button>
@@ -186,6 +186,9 @@
         <label>TOF-3(우) 임계 <b id="calTof3V">90</b></label><input id="calTof3" type="range" min="30" max="400" step="5" value="90">
         <label>직진 속도 <b id="calDriveV">350</b></label><input id="calDrive" type="range" min="150" max="700" step="10" value="350">
         <label>조향 세기 <b id="calSteerV">20</b></label><input id="calSteer" type="range" min="5" max="127" step="1" value="20">
+        <label style="margin-top:10px"><input id="sideOn" type="checkbox" checked style="accent-color:var(--mint);width:18px;height:18px;vertical-align:-3px"> <b>측면 센서(ir5좌·ir4우) 정밀주행</b> — 복도 가운데 자동 유지</label>
+        <label>측면 게인 ×0.01 <b id="calSideKpV">35</b></label><input id="calSideKp" type="range" min="10" max="100" step="5" value="35">
+        <label>측면 목표거리 <b id="calSideTargetV">120</b></label><input id="calSideTarget" type="range" min="60" max="250" step="10" value="120">
       </details>
       <div class="foot"><button class="btn ghost" data-back="5">← 이전</button><span></span></div>
     </section>

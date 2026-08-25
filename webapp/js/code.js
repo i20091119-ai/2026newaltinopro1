@@ -29,6 +29,9 @@
   const HOLD_MS = 500;        // 원본: 회피/조향 동작을 0.5초 유지 후 재판단
   const BUMP_SPEED = -350, BUMP_MS = 200; // 터널 진입 범프(원본 백속도 -350, 0.2초)
   const PHASE_TIMEOUT = 25000;
+  // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 원본 '거리=120'을 측면 목표거리로 활용
+  let SIDE_ON = true, SIDE_KP = 0.35, SIDE_TARGET = 120;
+  const SIDE_SMAX = 20, SIDE_VALID = 350; // 이 값보다 멀면 '벽 없음'으로 간주
 
   // ② 복구코드 문제(원본 유형 유지: 초4 각도 / 중1 일차방정식 / 고1 이차방정식)
   // 학년별 20문항, 정수 정답. 난이도는 각 유형에서 가장 쉬운 수준으로만.
@@ -94,6 +97,7 @@
     Object.assign(sensor, s);
     if ($('cdsNow')) $('cdsNow').textContent = s.cds;
     if ($('tofNow')) $('tofNow').textContent = `${s.ir1}/${s.ir2}/${s.ir3}`;
+    if ($('sideNow')) $('sideNow').textContent = `${s.ir5}·${s.ir4}`;
     const c = $('battChip');
     if (c && s.battery > 0) { c.style.display = ''; c.textContent = '🔋 ' + s.battery; const low = s.battery < BATT_LOW; c.classList.toggle('err', low); if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체'); } if (!low) battWarned = false; }
   }
@@ -243,6 +247,15 @@
       setDrive(DRIVE, STEER); await sleep(HOLD_MS);
     } else if (sensor.ir3 < TOF3) {       // 우 벽 가까움 → 왼쪽-20 전진 0.5초
       setDrive(DRIVE, -STEER); await sleep(HOLD_MS);
+    } else if (SIDE_ON && (sensor.ir4 < SIDE_VALID || sensor.ir5 < SIDE_VALID)) {
+      // 측면 정밀 보정: 양쪽 벽 = 가운데 맞추기 / 한쪽 벽 = 목표거리 유지 (50ms 연속 미세조정)
+      const R = sensor.ir4, L = sensor.ir5;
+      let st;
+      if (R < SIDE_VALID && L < SIDE_VALID) st = SIDE_KP * (R - L);        // 좌벽에 가까우면 +(우로)
+      else if (R < SIDE_VALID)              st = SIDE_KP * (R - SIDE_TARGET); // 우벽 추종
+      else                                  st = -SIDE_KP * (L - SIDE_TARGET); // 좌벽 추종
+      st = Math.max(-SIDE_SMAX, Math.min(SIDE_SMAX, Math.round(st)));
+      setDrive(DRIVE, st); await sleep(STREAM_MS);
     } else {                              // 뚫림 → 직진(즉시 재판단)
       setDrive(DRIVE, 0); await sleep(STREAM_MS);
     }
@@ -323,6 +336,11 @@
     const bind = (id, set, span) => { const el = $(id); el.addEventListener('input', () => { set(+el.value); if ($(span)) $(span).textContent = el.value; }); if ($(span)) $(span).textContent = el.value; };
     bind('calTof1', v => TOF1 = v, 'calTof1V'); bind('calTof2', v => TOF2 = v, 'calTof2V'); bind('calTof3', v => TOF3 = v, 'calTof3V');
     bind('calDrive', v => DRIVE = v, 'calDriveV'); bind('calSteer', v => STEER = v, 'calSteerV');
+    // 측면 정밀주행
+    const sideChk = $('sideOn');
+    if (sideChk) sideChk.addEventListener('change', () => { SIDE_ON = sideChk.checked; toast(SIDE_ON ? '측면 정밀주행 ON' : '측면 정밀주행 OFF'); });
+    bind('calSideKp', v => SIDE_KP = v / 100, 'calSideKpV');
+    bind('calSideTarget', v => SIDE_TARGET = v, 'calSideTargetV');
     // 연결
     $('connBtn').onclick = () => { if (T.AndroidBridgeTransport.supported) connect('native'); else connect('mock'); };
     $('btSettings').onclick = () => { if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings(); else toast('실기(APK)에서만 열려요'); };
