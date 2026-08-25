@@ -59,7 +59,18 @@
   }, STREAM_MS); }
   function stopStream() { if (streamTimer) clearInterval(streamTimer), streamTimer = null; }
   function setDrive(m, s) { state.go(m, m); state.steer(s); }
-  function onSensor(s) { Object.assign(sensor, s); const a = $('cdsNow'), b = $('ir2Now'); if (a) a.textContent = s.cds; if (b) b.textContent = s.ir2; }
+  const BATT_LOW = 700; let battWarned = false;
+  function onSensor(s) {
+    Object.assign(sensor, s);
+    const a = $('cdsNow'), b = $('ir2Now'); if (a) a.textContent = s.cds; if (b) b.textContent = s.ir2;
+    const c = $('battChip');
+    if (c && s.battery > 0) {
+      c.style.display = ''; c.textContent = '🔋 ' + s.battery;
+      const low = s.battery < BATT_LOW; c.classList.toggle('err', low);
+      if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체'); }
+      if (!low) battWarned = false;
+    }
+  }
 
   // ---- 스텝 이동 ----
   function go(n) {

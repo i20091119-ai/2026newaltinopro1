@@ -133,9 +133,19 @@
   }
 
   // ---- 센서 프레임마다: 뷰어 + 꼬리잡기 ----
+  const BATT_LOW = 700;   // 이 값 미만이면 배터리 낮음(실기에서 관찰 후 조정)
+  let battWarned = false;
+  function updateBatt(v) {
+    const c = $('battChip'); if (!c) return;
+    if (v > 0) { c.style.display = ''; c.textContent = '🔋 ' + v; }
+    const low = v > 0 && v < BATT_LOW; c.classList.toggle('err', low);
+    if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체하세요'); }
+    if (!low) battWarned = false;
+  }
   function onSensor(s) {
     for (const k of ['ir1','ir2','ir3','ir4','ir5','ir6']) { const el = $('sv-' + k); if (el) el.textContent = s[k]; }
     if ($('sv-bat')) $('sv-bat').textContent = s.battery;
+    updateBatt(s.battery);
     const rear = s.ir6;
     if ($('rearNow')) $('rearNow').textContent = rear;
 
