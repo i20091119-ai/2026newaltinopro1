@@ -41,6 +41,21 @@
   // ---- 선택 학년 (시작 화면에서 결정) ----
   let selectedGrade = 'e3';
 
+  // ---- 효과음 (합성 WAV) ----
+  const SFX = {};
+  ['charge', 'caught', 'upgrade', 'win'].forEach(n => {
+    try { SFX[n] = new Audio('sounds/' + n + '.wav'); SFX[n].preload = 'auto'; } catch (e) {}
+  });
+  let sfxUnlocked = false;
+  function sfx(name) {
+    const base = SFX[name]; if (!base) return;
+    try { const a = base.cloneNode(); a.volume = 0.6; a.play().catch(() => {}); } catch (e) {}
+  }
+  function unlockAudio() { // 모바일 자동재생 정책: 첫 탭에서 오디오 해금
+    if (sfxUnlocked) return; sfxUnlocked = true;
+    Object.values(SFX).forEach(a => { try { a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {}); } catch (e) {} });
+  }
+
   const $ = (id) => document.getElementById(id);
   const setStatus = (t, c) => { const e = $('status'); e.textContent = t; e.className = 'status ' + (c || ''); };
 
@@ -98,6 +113,7 @@
     const cost = UPGRADE_COST[speedTier];
     if (coins < cost) { toast('코인이 부족해요! 문제를 더 풀어요'); return; }
     coins -= cost; speedTier++;
+    sfx('upgrade');
     updateShopUI();
     toast(`속도 ${speedNow()}! 🚀`);
   }
@@ -112,6 +128,7 @@
     if (armed && rear < rearThresh && cooldown === 0) {
       caught++; $('caughtVal').textContent = caught;
       energy = Math.max(0, energy - CAUGHT_PENALTY);
+      sfx('caught');
       beepFlash();
       armed = false; cooldown = MIN_INTERVAL_TICKS;
     }
@@ -156,6 +173,7 @@
     if (v === curAnswer) {
       energy = Math.min(ENERGY_MAX, energy + GAIN_PER_SOLVE);
       coins += 1;
+      sfx('charge');
       updateEnergyUI();
       // 연속 풀이: 모달 유지하고 다음 문제 바로 (에너지·코인 몰아 벌기)
       toast(`+${GAIN_PER_SOLVE} 에너지 ⚡  +1 코인 🪙`);
@@ -187,6 +205,7 @@
   }
 
   function pickGrade(g) {
+    unlockAudio();
     selectedGrade = g;
     const L = window.AltinoProblems.GRADE_LABELS[g] || g;
     if ($('gradeLabel')) $('gradeLabel').textContent = L;
