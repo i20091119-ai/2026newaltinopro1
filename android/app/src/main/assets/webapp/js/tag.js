@@ -309,8 +309,13 @@
 
     updateEnergyUI();
     startStream();                       // 게임 루프는 항상 가동(연결 전에도 UI 동작), 전송은 연결 시에만
-    if (T.AndroidBridgeTransport.supported) connect('native');
-    else setStatus('🔗 연결 안 됨', 'off');
+    if (T.AndroidBridgeTransport.supported) {
+      // 여러 알티노가 페어링된 부스: 1대면 자동연결, 0/여러 대면 선택창
+      const devs = new T.AndroidBridgeTransport().listDevices();
+      const alt = devs.filter(d => /altino|neo/i.test(d.name || ''));
+      if (alt.length === 1) connect('native', alt[0].address);
+      else { setStatus('🔗 연결 안 됨', 'off'); openConn(); }
+    } else setStatus('🔗 연결 안 됨', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);
 })();
