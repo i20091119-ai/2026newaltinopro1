@@ -1,0 +1,13 @@
+{
+  "name": "altino-neo-bridge",
+  "version": "1.0.0",
+  "description": "WebSocket <-> Bluetooth Classic RFCOMM(SPP) bridge for Altino Neo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "bluetooth-serial-port": "^3.0.0"
+  }
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>프로토콜 셀프테스트</title>
+<style>body{background:#0f1720;color:#e7eef5;font-family:monospace;padding:20px;line-height:1.6}
+.ok{color:#3ecf8e}.fail{color:#e5484d}h1{font-size:18px}code{color:#37c0a8}</style></head>
+<body><h1>알티노 프로토콜 인코더 검증</h1><div id="out"></div>
+<script src="js/protocol.js"></script>
+<script>
+const P=window.AltinoProtocol, out=document.getElementById('out');
+let pass=0, fail=0;
+function check(name, got, want){
+  const g=P.toHex(got), w=want.trim().toLowerCase();
+  const ok=g===w; ok?pass++:fail++;
+  out.innerHTML+=`<div class="${ok?'ok':'fail'}">${ok?'✓':'✗'} ${name}<br>&nbsp;&nbsp;got : <code>${g}</code>`+
+    (ok?'':`<br>&nbsp;&nbsp;want: <code>${w}</code>`)+`</div>`;
+}
+// 1) 정지 프레임
+let s=new P.AltinoState();
+check('정지 프레임', P.buildFrame(s),
+  '02 14 02 01 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03');
+// 2) 전진 speed=300 + 전조등 LED(3)
+s=new P.AltinoState(); s.go(300,300); s.ledSet(3);
+check('전진300 + LED(3)', P.buildFrame(s),
+  '02 14 5f 01 01 00 01 2c 01 2c 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 03');
+// 3) 음수 모터 인코딩 -300 => FE D3
+check('encodeMotor(-300)=[0xFE,0xD3]', Uint8Array.from(P.encodeMotor(-300)), 'fe d3');
+check('encodeMotor(300)=[0x01,0x2C]', Uint8Array.from(P.encodeMotor(300)), '01 2c');
+// 4) 조향 -127 => 0x81
+s=new P.AltinoState(); s.steer(-127);
+check('Steering(-127) byte[5]=0x81', Uint8Array.of(P.buildFrame(s)[5]), '81');
+// 5) 수신 프레임 파서
+const f=new Uint8Array(54); f[0]=2; f[1]=0x30; f[53]=3;
+f[49]=0x03; f[50]=0x08; // battery=0x0308=776
+f[5]=0x01; f[6]=0x2c;   // ir1=300
+const sen=P.parseSensorFrame(f);
+check('parse battery=776', Uint8Array.of(sen.battery===776?1:0), '01');
+check('parse ir1=300', Uint8Array.of(sen.ir1===300?1:0), '01');
+out.innerHTML+=`<h1 class="${fail?'fail':'ok'}">결과: ${pass} 통과 / ${fail} 실패</h1>`;
+</script></body></html>
