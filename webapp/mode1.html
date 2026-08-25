@@ -57,15 +57,20 @@
   .mplus{font-size:1.6rem;color:var(--mut)}
   .calcrow{text-align:center;font-size:1.3rem;margin:10px 0 4px}
   /* ⑤ 블록 조립 */
-  .slots{display:flex;flex-direction:column;gap:8px;margin:8px 0}
-  .slot{border:2px dashed var(--line);border-radius:14px;min-height:54px;display:flex;align-items:center;padding:0 12px;color:var(--mut);background:#fafafa}
+  .slots{display:flex;flex-direction:column;gap:7px;margin:0}
+  .slot{border:2px dashed var(--line);border-radius:14px;min-height:50px;display:flex;align-items:center;padding:0 10px;color:var(--mut);background:#fafafa;font-size:.9rem}
   .slot.ok{border-style:solid;border-color:var(--mint);background:#effbf6}
-  .palette{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-  .blk{display:flex;align-items:center;gap:10px;border:2px solid var(--line);border-radius:14px;padding:11px 14px;background:#fff;cursor:pointer;font-size:1.02rem;box-shadow:var(--shadow);text-align:left;font-family:inherit;color:var(--ink);width:100%}
+  .palette{display:flex;flex-direction:column;gap:7px;margin:0}
+  .blk{display:flex;align-items:center;gap:8px;border:2px solid var(--line);border-radius:14px;padding:9px 11px;background:#fff;cursor:pointer;font-size:.95rem;box-shadow:var(--shadow);text-align:left;font-family:inherit;color:var(--ink);width:100%;flex-wrap:wrap}
   .blk:active{transform:translateY(2px)}
   .blk .bic{font-size:1.4rem}
+  .blk input.blkin{width:78px;font-size:1.05rem;padding:6px 8px;border-radius:10px;border:2px solid rgba(0,0,0,.18);text-align:center;font-family:inherit;background:#fff}
+  .slot.bad{border-style:solid;border-color:var(--coral);background:#fff2f1}
   .blk.blue{border-color:#bcd8ff;background:#f4faff}.blk.mint{border-color:#bdeede;background:#effbf6}
   .blk.sun{border-color:#ffe0a3;background:#fff8ec}.blk.coral{border-color:#f6c9c4;background:#fff2f1}
+  .blk.grape{border-color:#dcc8ff;background:#f8f4ff}
+  .build{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .colcap{color:var(--mut);font-size:.85rem;font-weight:700;margin:0 0 4px 2px}
   .foot{display:flex;justify-content:space-between;margin-top:12px;gap:10px}
   details.cal{margin-top:10px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 12px}
   details.cal summary{cursor:pointer;color:var(--mut);font-size:.9rem}
@@ -121,7 +126,7 @@
         <div class="prob" id="probText"></div>
         <div class="row"><input id="ansInput" type="number" placeholder="?"><button id="ansOk" class="btn">확인</button></div>
         <div class="fb" id="ansFb"></div>
-        <div id="codeReveal" class="codebox hidden"><div class="lead" style="margin:0">복구 코드(암호)</div><div class="val" id="codeVal">--</div></div>
+        <div id="codeReveal" class="codebox hidden"><div class="lead" style="margin:0">복구 코드(암호) — ✏️ 활동지에 쓰세요</div><div class="val" id="codeVal">--</div></div>
       </div>
       <div class="foot"><button class="btn ghost" data-back="1">← 이전</button><button id="toStep3" class="btn hidden">다음 →</button></div>
     </section>
@@ -130,7 +135,7 @@
     <section id="step3" class="card hidden">
       <div class="eyebrow">③ 미션1 소리 — 터널에서 낼 소리</div>
       <h1>터널 소리를 코딩하자 🎵</h1>
-      <p class="lead">터널을 지날 때 차 부저로 두 음을 번갈아 <b>몇 번</b> 낼지 정해요. (활동지 참고)</p>
+      <p class="lead">터널을 지날 때 차 부저로 두 음을 번갈아 <b>몇 번</b> 낼지 정해요. 고른 계이름과 횟수를 ✏️ <b>활동지에 쓰세요</b>.</p>
       <div class="soundcode">
         <div class="row"><span>🔁 <input id="repeatN" type="number" value="3" style="width:90px"> 번 반복:</span></div>
         <div class="row">소리 <select id="note1"></select> → 0.5초 → 소리 <select id="note2"></select> → 0.5초</div>
@@ -144,19 +149,21 @@
       <h1>오늘의 배송지 📦</h1>
       <p class="lead">배송지: <b id="destName">--</b> — 표에서 <b>문자</b>를 찾아요. 도착하면 이 글자가 떠요!</p>
       <table id="zoneTable"><tr><th>배송 구역</th><th>문자</th></tr></table>
-      <div class="codebox"><div class="lead" style="margin:0">표시할 문자</div><div class="val" id="letterVal">--</div></div>
+      <div class="codebox"><div class="lead" style="margin:0">표시할 문자 — ✏️ 활동지에 쓰세요</div><div class="val" id="letterVal">--</div></div>
       <div class="foot"><button class="btn ghost" data-back="3">← 이전</button><button id="toStep5" class="btn">다음 →</button></div>
     </section>
 
     <!-- 5 블록 조립 -->
     <section id="step5" class="card hidden">
-      <div class="eyebrow">⑤ 프로그램 조립 — 블록 순서 맞추기</div>
+      <div class="eyebrow">⑤ 프로그램 조립 — 숫자 넣고 순서 맞추기</div>
       <h1>배송 프로그램을 완성하자 🧩</h1>
-      <p class="lead">내가 정한 값이 담긴 블록들이에요. <b>실행 순서</b>대로 탭해서 위 칸에 놓아요. 순서가 맞으면 출발!</p>
-      <div class="slots" id="slots"></div>
-      <div class="palette" id="palette"></div>
+      <p class="lead">✏️ <b>활동지에 쓴 숫자</b>를 각 블록의 빈칸에 넣고, <b>실행 순서</b>대로 탭해서 위 칸에 놓아요. 다 되면 [조립 확인]!</p>
+      <div class="build">
+        <div><div class="colcap">📋 실행 순서 (1→5)</div><div class="slots" id="slots"></div></div>
+        <div><div class="colcap">🧰 블록 창고 — 숫자를 넣고 탭!</div><div class="palette" id="palette"></div></div>
+      </div>
       <div class="fb" id="blockFb"></div>
-      <div class="foot"><button class="btn ghost" data-back="4">← 이전</button><button id="toStep6" class="btn hidden">출발 준비 →</button></div>
+      <div class="foot"><button class="btn ghost" data-back="4">← 이전</button><span class="row"><button id="blockCheck" class="btn">✅ 조립 확인</button><button id="toStep6" class="btn mint hidden">출발 준비 →</button></span></div>
     </section>
 
     <!-- 6 실행 -->

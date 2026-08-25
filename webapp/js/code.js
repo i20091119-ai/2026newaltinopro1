@@ -27,16 +27,45 @@
   let DRIVE = 350, BACK = -320, STEER = 20;
   const PHASE_TIMEOUT = 25000;
 
-  // ② 복구코드 문제(원본: 초4 각도35 / 중1 일차48 / 고1 이차26)
+  // ② 복구코드 문제(원본 유형 유지: 초4 각도 / 중1 일차방정식 / 고1 이차방정식)
+  // 학년별 20문항, 정수 정답. 난이도는 각 유형에서 가장 쉬운 수준으로만.
   const PROBLEMS = {
     e4: { label: '초4 · 각도', list: [
       { q: '왼쪽으로 20°, 다시 15° 더 꺾었다. 모두 몇 도?', a: 35 },
-      { q: '25° + 20° = ?', a: 45 }, { q: '40° + 30° = ?', a: 70 } ] },
+      { q: '25° + 20° = ?', a: 45 }, { q: '40° + 30° = ?', a: 70 },
+      { q: '직각(90°)에서 30°를 빼면?', a: 60 }, { q: '35° + 25° = ?', a: 60 },
+      { q: '50° + 45° = ?', a: 95 }, { q: '180° − 100° = ?', a: 80 },
+      { q: '직각은 몇 도?', a: 90 }, { q: '15° + 30° = ?', a: 45 },
+      { q: '90° − 25° = ?', a: 65 }, { q: '20° + 20° + 20° = ?', a: 60 },
+      { q: '45° + 45° = ?', a: 90 }, { q: '180° − 90° = ?', a: 90 },
+      { q: '30° + 55° = ?', a: 85 }, { q: '75° − 15° = ?', a: 60 },
+      { q: '10° + 25° = ?', a: 35 }, { q: '60° + 30° = ?', a: 90 },
+      { q: '90° − 45° = ?', a: 45 }, { q: '120° − 40° = ?', a: 80 },
+      { q: '25° + 35° = ?', a: 60 } ] },
     m1: { label: '중1 · 일차방정식', list: [
-      { q: '2x − 12 = 84 의 x는?', a: 48 }, { q: '5x = 45 의 x는?', a: 9 }, { q: '3x + 5 = 50 의 x는?', a: 15 } ] },
+      { q: '2x − 12 = 84 의 x는?', a: 48 }, { q: '5x = 45 의 x는?', a: 9 },
+      { q: '3x + 5 = 50 의 x는?', a: 15 }, { q: 'x + 7 = 20 의 x는?', a: 13 },
+      { q: '2x = 34 의 x는?', a: 17 }, { q: '4x = 48 의 x는?', a: 12 },
+      { q: 'x − 9 = 21 의 x는?', a: 30 }, { q: '2x + 6 = 30 의 x는?', a: 12 },
+      { q: '3x − 6 = 24 의 x는?', a: 10 }, { q: '6x = 42 의 x는?', a: 7 },
+      { q: 'x + 15 = 40 의 x는?', a: 25 }, { q: '5x − 5 = 45 의 x는?', a: 10 },
+      { q: '2x + 10 = 50 의 x는?', a: 20 }, { q: '7x = 56 의 x는?', a: 8 },
+      { q: 'x − 13 = 7 의 x는?', a: 20 }, { q: '4x + 4 = 40 의 x는?', a: 9 },
+      { q: '3x = 51 의 x는?', a: 17 }, { q: '2x − 8 = 32 의 x는?', a: 20 },
+      { q: '8x = 72 의 x는?', a: 9 }, { q: 'x + 24 = 60 의 x는?', a: 36 } ] },
     h1: { label: '고1 · 이차방정식', list: [
-      { q: 'x² − 50x + 624 = 0 의 큰 근은?', a: 26 }, { q: 'x² − 9x + 20 = 0 의 큰 근은?', a: 5 }, { q: 'x² − 13x + 40 = 0 의 큰 근은?', a: 8 } ] },
+      { q: 'x² − 50x + 624 = 0 의 큰 근은?', a: 26 }, { q: 'x² − 9x + 20 = 0 의 큰 근은?', a: 5 },
+      { q: 'x² − 13x + 40 = 0 의 큰 근은?', a: 8 }, { q: 'x² − 7x + 12 = 0 의 큰 근은?', a: 4 },
+      { q: 'x² − 5x + 6 = 0 의 큰 근은?', a: 3 }, { q: 'x² − 10x + 21 = 0 의 큰 근은?', a: 7 },
+      { q: 'x² − 11x + 30 = 0 의 큰 근은?', a: 6 }, { q: 'x² − 8x + 15 = 0 의 큰 근은?', a: 5 },
+      { q: 'x² − 12x + 35 = 0 의 큰 근은?', a: 7 }, { q: 'x² − 6x + 8 = 0 의 큰 근은?', a: 4 },
+      { q: 'x² − 14x + 45 = 0 의 큰 근은?', a: 9 }, { q: 'x² − 15x + 56 = 0 의 큰 근은?', a: 8 },
+      { q: 'x² − 9x + 18 = 0 의 큰 근은?', a: 6 }, { q: 'x² − 16x + 63 = 0 의 큰 근은?', a: 9 },
+      { q: 'x² − 10x + 24 = 0 의 큰 근은?', a: 6 }, { q: 'x² − 11x + 24 = 0 의 큰 근은?', a: 8 },
+      { q: 'x² − 13x + 42 = 0 의 큰 근은?', a: 7 }, { q: 'x² − 12x + 32 = 0 의 큰 근은?', a: 8 },
+      { q: 'x² − 17x + 72 = 0 의 큰 근은?', a: 9 }, { q: 'x² − 7x + 10 = 0 의 큰 근은?', a: 5 } ] },
   };
+  try { window.__f1Problems = PROBLEMS; } catch (e) {} // 테스트/검산용 노출
   const ZONES = [
     { name: '북부 물류창고', code: 'N' }, { name: '동부 집하장', code: 'E' },
     { name: '중앙 배송센터', code: 'D' }, { name: '서부 터미널', code: 'W' }, { name: '남부 보관소', code: 'S' },
@@ -85,7 +114,7 @@
     const fb = $('lightFb');
     if (isNaN(v)) { fb.textContent = '숫자를 넣어요.'; fb.style.color = 'var(--coral)'; return; }
     if (Math.abs(v - exp) <= 1) { // 두 값의 평균(±1 허용) — 좌절 방지
-      lightThresh = v; fb.textContent = `정답! 터널 기준 = ${v} 🔆`; fb.style.color = 'var(--mint)';
+      lightThresh = v; fb.textContent = `정답! 터널 기준 = ${v} 🔆 — ✏️ 활동지에 쓰세요`; fb.style.color = 'var(--mint)';
       $('toStep2').classList.remove('hidden'); toast('🔆 터널 기준 완성!');
     } else { fb.textContent = '다시 계산해 봐요. (사이값 = 두 값을 더해 2로 나누기)'; fb.style.color = 'var(--coral)'; $('toStep2').classList.add('hidden'); }
   }
@@ -93,7 +122,9 @@
   // ② 암호
   let curP = null;
   function pickGrade(g) {
-    grade = g; const set = PROBLEMS[g]; curP = set.list[Math.floor(Math.random() * set.list.length)];
+    grade = g; const set = PROBLEMS[g];
+    let next; do { next = set.list[Math.floor(Math.random() * set.list.length)]; } while (set.list.length > 1 && next === curP);
+    curP = next;
     $('probText').textContent = curP.q; $('ansInput').value = ''; $('ansFb').textContent = '';
     $('probWrap').classList.remove('hidden'); $('codeReveal').classList.add('hidden'); $('toStep3').classList.add('hidden');
     document.querySelectorAll('.gradebtn').forEach(b => b.classList.toggle('sel', b.dataset.g === g)); $('ansInput').focus();
@@ -114,20 +145,35 @@
     $('letterVal').textContent = zone.code;
   }
 
-  // ⑤ 블록 조립 (아주 약간의 코딩 — 순서 배치)
+  // ⑤ 블록 조립 (아주 약간의 코딩)
+  // 학생이 활동지에 쓴 숫자를 각 블록의 빈칸에 직접 넣고, 실행 순서대로 배치한다.
+  // [조립 확인]에서 값(활동 결과와 일치)과 순서를 함께 검증.
   const BLOCKS = [
-    { id: 'light',  ic: '🔆', cls: 'blue',  text: () => `조도값 = ${lightThresh} — 터널 기준 세우기` },
-    { id: 'drive',  ic: '🚗', cls: 'mint',  text: () => `출발! 벽 따라 자율주행 (코드 ${recoverCode != null ? recoverCode : '--'})` },
-    { id: 'sound',  ic: '🎵', cls: 'sun',   text: () => `터널이면 → 소리 ${NOTE_NAME[note1]}·${NOTE_NAME[note2]} ×${repeatN}` },
-    { id: 'letter', ic: '📦', cls: 'coral', text: () => `도착하면 → 문자 '${zone ? zone.code : '--'}' 표시` },
+    { id: 'light',  ic: '🔆', cls: 'blue',  pre: () => '조도값 = ',  post: ' — 터널 기준 세우기', type: 'number' },
+    { id: 'drive',  ic: '🚗', cls: 'mint',  pre: () => '앞으로 간다 · 주행 코드 ', post: '', type: 'number' },
+    { id: 'avoid',  ic: '↩️', cls: 'grape', pre: () => '앞에 장애물이 있으면 → 방향을 틀어 피해서 간다', post: '', type: 'none' },
+    { id: 'sound',  ic: '🎵', cls: 'sun',   pre: () => `터널이면 → 소리 ${NOTE_NAME[note1]}·${NOTE_NAME[note2]} × `, post: '번', type: 'number' },
+    { id: 'letter', ic: '📦', cls: 'coral', pre: () => '도착하면 → 문자 ', post: ' 표시', type: 'text' },
   ];
-  const BLOCK_ORDER = ['light', 'drive', 'sound', 'letter'];
+  const BLOCK_ORDER = ['light', 'drive', 'avoid', 'sound', 'letter'];
+  const blockVals = { light: '', drive: '', avoid: '', sound: '', letter: '' };
   let placed = [], paletteIds = [];
   function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function blkEl(id, where) {
     const b = BLOCKS.find(x => x.id === id);
     const d = document.createElement('button'); d.className = 'blk ' + b.cls; d.dataset.id = id;
-    d.innerHTML = `<span class="bic">${b.ic}</span><span>${b.text()}</span>`;
+    const bic = document.createElement('span'); bic.className = 'bic'; bic.textContent = b.ic; d.appendChild(bic);
+    const pre = document.createElement('span'); pre.textContent = b.pre(); d.appendChild(pre);
+    if (b.type !== 'none') {
+      const inp = document.createElement('input');
+      inp.className = 'blkin'; inp.placeholder = '?'; inp.value = blockVals[id];
+      if (b.type === 'number') { inp.type = 'number'; inp.inputMode = 'numeric'; }
+      else { inp.type = 'text'; inp.maxLength = 1; inp.style.width = '64px'; }
+      ['click', 'pointerdown', 'touchstart'].forEach(ev => inp.addEventListener(ev, e => e.stopPropagation()));
+      inp.addEventListener('input', () => { blockVals[id] = inp.value; });
+      d.appendChild(inp);
+      if (b.post) { const po = document.createElement('span'); po.textContent = b.post; d.appendChild(po); }
+    }
     d.onclick = where === 'palette' ? () => placeBlock(id) : () => removeBlock(id);
     return d;
   }
@@ -141,22 +187,40 @@
     for (let i = 0; i < BLOCK_ORDER.length; i++) {
       const s = document.createElement('div'); s.className = 'slot';
       if (placed[i]) { s.appendChild(blkEl(placed[i], 'slot')); s.classList.add('filled'); }
-      else s.textContent = `${i + 1}번째 실행`;
+      else s.textContent = i === 0 ? '1번째 실행 · 💡 힌트: 달리기 전에 터널 기준부터!' : `${i + 1}번째 실행`;
       slots.appendChild(s);
     }
     const pal = $('palette'); pal.innerHTML = '';
     paletteIds.forEach(id => pal.appendChild(blkEl(id, 'palette')));
-    if (placed.length === BLOCK_ORDER.length) checkBlocks();
   }
   function placeBlock(id) { if (placed.includes(id) || placed.length >= BLOCK_ORDER.length) return; placed.push(id); renderBlocks(paletteIds); }
   function removeBlock(id) { placed = placed.filter(x => x !== id); $('toStep6').classList.add('hidden'); $('blockFb').textContent = ''; renderBlocks([...paletteIds, id]); }
   function checkBlocks() {
-    const ok = placed.every((id, i) => id === BLOCK_ORDER[i]);
-    const slots = $('slots').children;
-    for (let i = 0; i < slots.length; i++) slots[i].classList.toggle('ok', placed[i] === BLOCK_ORDER[i]);
     const fb = $('blockFb');
-    if (ok) { fb.textContent = '프로그램 완성! 🧩 출발할 수 있어요.'; fb.style.color = 'var(--mint)'; $('toStep6').classList.remove('hidden'); toast('🧩 조립 완성!'); }
-    else { fb.textContent = '순서가 달라요. 블록을 탭해서 다시 놓아요.'; fb.style.color = 'var(--coral)'; }
+    if (placed.length < BLOCK_ORDER.length) { fb.textContent = `블록 ${BLOCK_ORDER.length}개를 모두 위 칸에 놓아요.`; fb.style.color = 'var(--coral)'; return; }
+    const valOk = {
+      light: parseInt(blockVals.light, 10) === lightThresh,
+      drive: recoverCode != null && parseInt(blockVals.drive, 10) === recoverCode,
+      avoid: true, // 입력 없는 순서 블록
+      sound: parseInt(blockVals.sound, 10) === repeatN,
+      letter: !!zone && String(blockVals.letter).trim().toUpperCase() === zone.code,
+    };
+    const orderOk = placed.every((id, i) => id === BLOCK_ORDER[i]);
+    const slots = $('slots').children;
+    for (let i = 0; i < slots.length; i++) {
+      const id = placed[i];
+      slots[i].classList.toggle('ok', id === BLOCK_ORDER[i] && valOk[id]);
+      slots[i].classList.toggle('bad', !valOk[id]);
+    }
+    const allVals = Object.values(valOk).every(Boolean);
+    if (orderOk && allVals) {
+      fb.textContent = '프로그램 완성! 🧩 출발할 수 있어요.'; fb.style.color = 'var(--mint)';
+      $('toStep6').classList.remove('hidden'); toast('🧩 조립 완성!');
+    } else if (!allVals) {
+      fb.textContent = '숫자가 틀린 블록이 있어요(빨간 칸). ✏️ 활동지를 다시 봐요.'; fb.style.color = 'var(--coral)'; $('toStep6').classList.add('hidden');
+    } else {
+      fb.textContent = '숫자는 맞아요! 그런데 실행 순서가 달라요. 다시 놓아 봐요.'; fb.style.color = 'var(--coral)'; $('toStep6').classList.add('hidden');
+    }
   }
 
   // ⑥ 요약
@@ -243,6 +307,8 @@
     $('ansOk').onclick = checkAns; $('ansInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkAns(); });
     // ③ 소리 선택
     noteOptions($('note1'), 37); noteOptions($('note2'), 41);
+    // ⑤ 조립 확인
+    $('blockCheck').onclick = checkBlocks;
     // ⑥ 실행
     $('goRun').onclick = runDelivery; $('stopRun').onclick = stopRun;
     // 보정
