@@ -11,6 +11,8 @@
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null;
   const STREAM_MS = 50;                 // 20 tick/s
+  // BT 자동 재연결
+  let lastNative = null, manualDisconnect = false, reconnectTimer = null;
 
   // ---- 에너지 경제 (모두 현장 조절용 상수) ----
   const SECONDS_PER_SOLVE = 30;        // 문제 1개로 달릴 수 있는 시간(초)
@@ -198,22 +200,34 @@
   // ---- 연결 ----
   async function connect(kind, addr) {
     await disconnect();
+    manualDisconnect = false;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     try {
       if (kind === 'native') {
         transport = new T.AndroidBridgeTransport();
-        if (addr) { setStatus('🔗 연결 중…', 'pending'); await transport.connectTo(addr); }
-        else { setStatus('🔗 연결 중…', 'pending'); await transport.connect(); }
+        lastNative = addr || 'auto';
+        setStatus('🔗 연결 중…', 'pending');
+        if (addr) await transport.connectTo(addr); else await transport.connect();
       }
-      else if (kind === 'ws') { transport = new T.WebSocketTransport(); await transport.connect({ url: $('wsurl').value.trim() }); }
-      else { transport = new T.MockTransport(); await transport.connect({}); }
+      else if (kind === 'ws') { lastNative = null; transport = new T.WebSocketTransport(); await transport.connect({ url: $('wsurl').value.trim() }); }
+      else { lastNative = null; transport = new T.MockTransport(); await transport.connect({}); }
       transport.on('status', (s) => {
         if (s === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
-        else if (s === 'disconnected') setStatus('🔗 연결 끊김', 'off');
-        else setStatus('⚠ ' + connErr(s), 'err');
+        else if (s === 'disconnected') { setStatus('🔗 연결 끊김', 'off'); maybeReconnect(); }
+        else { setStatus('⚠ ' + connErr(s), 'err'); maybeReconnect(); }
       });
       transport.on('data', (bytes) => { for (const f of assembler.push(bytes)) onSensor(f); });
       if (kind !== 'native') setStatus('🔗 연결됨 ✓', 'ok'); // native는 __altinoOnStatus 콜백에서 확정
-    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; }
+    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; maybeReconnect(); }
+  }
+  // 끊기면 마지막 알티노로 자동 재연결(수동 해제 시엔 안 함)
+  function maybeReconnect() {
+    if (manualDisconnect || !lastNative || reconnectTimer) return;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      setStatus('🔗 재연결 중…', 'pending');
+      connect('native', lastNative === 'auto' ? undefined : lastNative);
+    }, 3000);
   }
 
   // 네이티브 오류 코드 → 사용자 안내
@@ -261,6 +275,8 @@
   }
   function closeConn() { $('connModal').classList.add('hidden'); }
   async function disconnect() {
+    manualDisconnect = true;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     state.stopAll();
     if (transport) { try { await transport.send(P.buildFrame(state)); } catch (e) {} try { await transport.disconnect(); } catch (e) {} }
     transport = null; setStatus('🔗 연결 안 됨', 'off');
