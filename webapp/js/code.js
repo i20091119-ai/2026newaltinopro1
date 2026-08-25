@@ -158,7 +158,14 @@
       setDrive(0, 0); await sleep(200);
     }
     highlight(-1);
-    if (running && zone) { showLetter(zone.code); toast(`📦 배송 완료! [${zone.code}]`); await sleep(2500); }
+    if (running && zone) {
+      showLetter(zone.code);                 // 도트매트릭스
+      $('arriveLetter').textContent = zone.code; $('arriveName').textContent = zone.name;
+      $('arrive').classList.remove('hidden'); // 태블릿에 크게
+      toast(`📦 배송 완료! [${zone.code}]`);
+      await sleep(3000);
+      $('arrive').classList.add('hidden');
+    }
     setDrive(0, 0); clearLetter(); running = false; setRunUI(false);
   }
   function stopRun() { running = false; setDrive(0, 0); clearLetter(); state.soundSet(0); setRunUI(false); highlight(-1); }
