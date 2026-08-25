@@ -65,6 +65,7 @@
       <div class="top"><span>에너지 <b id="energyVal">40</b></span><span>충전소에서 문제 풀기 → ⚡</span></div>
       <div class="track"><div id="energyBar"></div></div>
     </div>
+    <div class="caughtbox"><div class="n" id="coinVal">0</div><div class="l">🪙 코인</div></div>
     <div class="caughtbox"><div class="n" id="caughtVal">0</div><div class="l">잡힘</div></div>
   </div>
 
@@ -88,8 +89,9 @@
           <option value="hi">5~6학년 (곱셈·나눗셈)</option>
         </select>
       </div>
-      <div class="slider"><label>속도 <b id="speedval">350</b></label><input id="speed" type="range" min="150" max="700" step="10" value="350"></div>
-      <button id="resetBtn" class="btn ghost">새 판 (점수 초기화)</button>
+      <div class="slider" style="display:flex;justify-content:space-between;align-items:center"><label>현재 속도</label><b id="speedNow" style="font-size:1.2rem">350</b></div>
+      <button id="upgradeBtn" class="btn" style="background:#f5a623;color:#3a1c00">🛒 속도업</button>
+      <button id="resetBtn" class="btn ghost">새 판 (초기화)</button>
     </div>
   </div>
 

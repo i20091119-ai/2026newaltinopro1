@@ -11,14 +11,20 @@
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null;
   const STREAM_MS = 50;                 // 20 tick/s
-  let speed = 350;
 
-  // ---- 에너지 경제 ----
-  const ENERGY_MAX = 100;
-  const DRAIN_PER_SEC = 14;             // 주행 중 초당 소모
-  const GAIN_PER_SOLVE = 30;            // 문제 1개 정답 시 충전
-  const CAUGHT_PENALTY = 15;            // 뒤에 붙잡히면 에너지 감소
-  let energy = 40;                      // 시작 에너지 (문제 한두 개 풀고 출발하는 느낌)
+  // ---- 에너지 경제 (모두 현장 조절용 상수) ----
+  const ENERGY_MAX = 2000;             // 최대 저장 = 문제 4개치(40초)
+  const DRAIN_PER_SEC = 50;            // 주행 중 초당 소모
+  const GAIN_PER_SOLVE = 500;          // 문제 1개 정답 시 충전 → 1문제 = 500/50 = 10초
+  const CAUGHT_PENALTY = 250;          // 뒤에 붙잡히면 감소(5초치)
+  let energy = 500;                    // 시작 = 문제 1개치
+
+  // ---- 코인 경제 (속도업) ----
+  let coins = 0;
+  let speedTier = 0;
+  const SPEED_TIERS = [350, 450, 550, 650];
+  const UPGRADE_COST = [3, 5, 8];      // tier 0→1, 1→2, 2→3 비용(코인)
+  const speedNow = () => SPEED_TIERS[speedTier];
 
   // ---- 꼬리잡기 판정 ----
   let caught = 0;
@@ -47,7 +53,7 @@
     // 에너지 소모 (실제로 움직일 때만)
     if (canMove) { energy = Math.max(0, energy - DRAIN_PER_SEC * (STREAM_MS / 1000)); }
     // 모터/조향 반영 (에너지 없으면 구동 0, 조향은 공짜)
-    const m = canMove ? intent.drive * speed : 0;
+    const m = canMove ? intent.drive * speedNow() : 0;
     state.go(m, m);
     state.steer(intent.steer);
     // 비프/플래시 감쇠
@@ -66,7 +72,30 @@
     const empty = energy <= 0;
     document.body.classList.toggle('nofuel', empty);
     $('fuelWarn').classList.toggle('hidden', !empty);
-    $('energyBar').classList.toggle('low', energy < 25);
+    $('energyBar').classList.toggle('low', energy < GAIN_PER_SOLVE * 0.5);
+    updateShopUI();
+  }
+
+  function updateShopUI() {
+    if ($('coinVal')) $('coinVal').textContent = coins;
+    if ($('speedNow')) $('speedNow').textContent = speedNow();
+    const btn = $('upgradeBtn'); if (!btn) return;
+    if (speedTier >= SPEED_TIERS.length - 1) {
+      btn.textContent = '🏁 최고 속도!'; btn.disabled = true;
+    } else {
+      const cost = UPGRADE_COST[speedTier];
+      btn.textContent = `🛒 속도업 ${SPEED_TIERS[speedTier + 1]} (코인 ${cost})`;
+      btn.disabled = coins < cost;
+    }
+  }
+
+  function buyUpgrade() {
+    if (speedTier >= SPEED_TIERS.length - 1) return;
+    const cost = UPGRADE_COST[speedTier];
+    if (coins < cost) { toast('코인이 부족해요! 문제를 더 풀어요'); return; }
+    coins -= cost; speedTier++;
+    updateShopUI();
+    toast(`속도 ${speedNow()}! 🚀`);
   }
 
   // ---- 센서 프레임마다: 뷰어 + 꼬리잡기 ----
@@ -127,9 +156,10 @@
     if (isNaN(v)) { $('probFb').textContent = '숫자를 입력하세요.'; return; }
     if (v === curAnswer) {
       energy = Math.min(ENERGY_MAX, energy + GAIN_PER_SOLVE);
+      coins += 1;
       updateEnergyUI();
-      // 연속 풀이: 모달 유지하고 다음 문제 바로 (에너지 몰아 충전)
-      toast(`+${GAIN_PER_SOLVE} 에너지 ⚡`);
+      // 연속 풀이: 모달 유지하고 다음 문제 바로 (에너지·코인 몰아 벌기)
+      toast(`+${GAIN_PER_SOLVE} 에너지 ⚡  +1 코인 🪙`);
       genProblem();
     } else { $('probFb').textContent = '다시! 계산을 확인해요.'; }
   }
@@ -163,7 +193,7 @@
     bindHold($('d-left'),  () => intent.steer = -127, () => intent.steer = 0);
     bindHold($('d-right'), () => intent.steer = 127,  () => intent.steer = 0);
 
-    $('speed').addEventListener('input', (e) => { speed = +e.target.value; $('speedval').textContent = speed; });
+    $('upgradeBtn').addEventListener('click', buyUpgrade);
     $('thresh').addEventListener('input', (e) => { rearThresh = +e.target.value; $('threshval').textContent = rearThresh; });
     $('threshval').textContent = rearThresh; $('thresh').value = rearThresh;
 
@@ -171,7 +201,10 @@
     $('probOk').addEventListener('click', checkProblem);
     $('probInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkProblem(); });
     $('probClose').addEventListener('click', () => $('repairModal').classList.add('hidden'));
-    $('resetBtn').addEventListener('click', () => { caught = 0; energy = 40; $('caughtVal').textContent = 0; updateEnergyUI(); toast('새 판 시작!'); });
+    $('resetBtn').addEventListener('click', () => {
+      caught = 0; energy = 500; coins = 0; speedTier = 0;
+      $('caughtVal').textContent = 0; updateEnergyUI(); toast('새 판 시작!');
+    });
 
     $('c-ws').addEventListener('click', () => connect('ws'));
     $('c-mock').addEventListener('click', () => connect('mock'));
