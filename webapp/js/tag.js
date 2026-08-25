@@ -142,12 +142,18 @@
     if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체하세요'); }
     if (!low) battWarned = false;
   }
+  let lastUi = 0;
   function onSensor(s) {
-    for (const k of ['ir1','ir2','ir3','ir4','ir5','ir6']) { const el = $('sv-' + k); if (el) el.textContent = s[k]; }
-    if ($('sv-bat')) $('sv-bat').textContent = s.battery;
-    updateBatt(s.battery);
     const rear = s.ir6;
-    if ($('rearNow')) $('rearNow').textContent = rear;
+    // 화면 숫자는 250ms마다만 갱신(덜덜 떨림 방지). 잡힘 판정은 매 프레임.
+    const now = Date.now();
+    if (now - lastUi >= 250) {
+      lastUi = now;
+      for (const k of ['ir1','ir2','ir3','ir4','ir5','ir6']) { const el = $('sv-' + k); if (el) el.textContent = s[k]; }
+      if ($('sv-bat')) $('sv-bat').textContent = s.battery;
+      updateBatt(s.battery);
+      if ($('rearNow')) $('rearNow').textContent = rear;
+    }
 
     if (armed && rear < rearThresh && cooldown === 0) {
       caught++; $('caughtVal').textContent = caught;

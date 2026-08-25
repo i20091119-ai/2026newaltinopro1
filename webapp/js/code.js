@@ -153,14 +153,18 @@
   function stopStream() { if (streamTimer) clearInterval(streamTimer), streamTimer = null; }
   function setDrive(m, s) { state.go(m, m); state.steer(s); }
 
-  const BATT_LOW = 700; let battWarned = false;
+  const BATT_LOW = 700; let battWarned = false, lastUi = 0;
   function onSensor(s) {
-    Object.assign(sensor, s);
+    Object.assign(sensor, s);  // 센서 자체는 매 프레임 갱신(주행 판단용)
+    // 화면 숫자는 250ms마다만 갱신(초당 4회) — 덜덜 떨림 방지. 폭은 CSS 고정 박스로.
+    const now = Date.now(); if (now - lastUi < 250) return; lastUi = now;
+    const tof = `${s.ir1}/${s.ir2}/${s.ir3}`;
+    const side = `${s.ir5}·${s.ir4}`;
     if ($('cdsNow')) $('cdsNow').textContent = s.cds;
-    if ($('tofNow')) $('tofNow').textContent = `${s.ir1}/${s.ir2}/${s.ir3}`;
-    if ($('sideNow')) $('sideNow').textContent = `${s.ir5}·${s.ir4}`;
-    if ($('hudTof')) $('hudTof').textContent = `${s.ir1}/${s.ir2}/${s.ir3}`;
-    if ($('hudSide')) $('hudSide').textContent = `${s.ir5}·${s.ir4}`;
+    if ($('tofNow')) $('tofNow').textContent = tof;
+    if ($('sideNow')) $('sideNow').textContent = side;
+    if ($('hudTof')) $('hudTof').textContent = tof;
+    if ($('hudSide')) $('hudSide').textContent = side;
     if ($('hudCds')) $('hudCds').textContent = s.cds;
     const c = $('battChip');
     if (c && s.battery > 0) { c.style.display = ''; c.textContent = '🔋 ' + s.battery; const low = s.battery < BATT_LOW; c.classList.toggle('err', low); if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체'); } if (!low) battWarned = false; }
@@ -363,8 +367,15 @@
     }
     setDrive(0, 0); state.dotClear(); running = false; setRunUI(false);
   }
+  // 계속 주행(튜닝/시연): 미션·정지 없이 벽만 따라 무한 주행 → 정지 누를 때까지
+  async function runLoop() {
+    if (running) return; running = true; setRunUI(true); toast('🔁 계속 주행 — 코스를 계속 돌아요 (정지로 멈춤)');
+    setDrive(0, 0); await sleep(400);
+    while (running) { await wallFollowStep(); }
+    setDrive(0, 0);
+  }
   function stopRun() { running = false; setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); const g = $('goFlash'); if (g) g.classList.add('hidden'); setRunUI(false); }
-  function setRunUI(on) { $('goRun').classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
+  function setRunUI(on) { $('goRun').classList.toggle('hidden', on); const l = $('loopRun'); if (l) l.classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
 
   // ---- 연결 ----
   async function connect(kind, addr) {
@@ -447,6 +458,7 @@
     $('blockCheck').onclick = checkBlocks;
     // ⑥ 실행
     $('goRun').onclick = runDelivery; $('stopRun').onclick = stopRun;
+    if ($('loopRun')) $('loopRun').onclick = runLoop;
     // 보정
     const bind = (id, set, span) => { const el = $(id); el.addEventListener('input', () => { set(+el.value); if ($(span)) $(span).textContent = el.value; }); if ($(span)) $(span).textContent = el.value; };
     bind('calTof1', v => TOF1 = v, 'calTof1V'); bind('calTof2', v => TOF2 = v, 'calTof2V'); bind('calTof3', v => TOF3 = v, 'calTof3V');

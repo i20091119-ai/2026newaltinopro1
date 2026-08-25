@@ -22,7 +22,13 @@
   .btn.big{font-size:1.4rem;padding:20px}.btn.sm{padding:7px 12px;font-size:.85rem;margin-top:6px}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .topbar a{color:var(--blue);text-decoration:none}
-  .chip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow);font-size:.85rem}
+  .chip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow);font-size:.85rem;white-space:nowrap}
+  /* 센서 실시간 숫자: 고정폭 박스(inline-block+min-width) → 값이 바뀌어도 칸이 안 떨림 */
+  #cdsNow,#tofNow,#sideNow,#hudTof,#hudSide,#hudCds{display:inline-block;text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+  #cdsNow,#hudCds{min-width:3.4ch}
+  #tofNow,#hudTof{min-width:11ch}
+  #sideNow,#hudSide{min-width:7.4ch}
+  #driveHud{white-space:nowrap;overflow-x:auto}
   .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px}
   .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}
   .stepper{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
@@ -182,6 +188,7 @@
       </table>
       <p class="lead">출발하면 <b>자동으로 벽을 따라</b> 달리다가, 터널(어두움)에서 소리 미션 🎵, 도착하면 문자를 표시하고 멈춰요.</p>
       <button id="goRun" class="btn mint big">🚚 배송 출발!</button>
+      <button id="loopRun" class="btn ghost big" style="margin-top:8px">🔁 계속 주행 (튜닝·시연 · 멈추지 않음)</button>
       <button id="stopRun" class="btn coral big hidden">■ 정지</button>
       <div id="driveHud" style="margin-top:10px;background:#0e1a14;color:#eafff6;border-radius:14px;padding:10px 14px;font-size:1.05rem;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <span>🚦 <b id="hudAct">대기</b></span>
