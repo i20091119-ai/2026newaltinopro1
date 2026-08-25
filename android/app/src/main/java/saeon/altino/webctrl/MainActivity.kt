@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         web.addJavascriptInterface(spp, "AltinoNative")
 
         requestBtPermsIfNeeded()
-        web.loadUrl("file:///android_asset/webapp/index.html")
+        web.loadUrl("file:///android_asset/webapp/home.html")
     }
 
     /** 안드로이드 12+ 에서 targetSdk를 31 이상으로 올린 경우에만 런타임 권한이 필요. */
