@@ -312,11 +312,23 @@
   function hudAct(t) { const e = $('hudAct'); if (e) e.textContent = t; }
   async function wallFollowStep() {
     const { ir1, ir2, ir3, ir4, ir5 } = sensor;
-    if (ir2 < TOF2) {                     // ① 정면 벽 → 더 '열린'(값이 큰) 쪽으로 강하게 회전
-      const turn = (ir1 >= ir3) ? -TURN : TURN;  // 왼쪽이 더 열리면 좌회전(음수)
-      if (ir2 < NEAR2) { setDrive(WF_BACK, turn); hudAct(turn < 0 ? '⛔ 후진+좌회전' : '⛔ 후진+우회전'); }
-      else { setDrive(Math.round(DRIVE * 0.55), turn); hudAct(turn < 0 ? '↰ 정면벽 좌회전' : '↱ 정면벽 우회전'); }
-      await sleep(HOLD_MS);
+    if (ir2 < TOF2) {                     // ① 정면 벽 → 열린 쪽 판단 후 K턴 탈출
+      // 오른쪽 열림 = 전면우(ir3)+우측면(ir4) / 왼쪽 열림 = 전면좌(ir1)+좌측면(ir5)
+      const openR = Math.min(ir3, ir4), openL = Math.min(ir1, ir5);
+      const rightOpen = openR >= openL;
+      const FULL = 127;                   // 핸들 풀락
+      if (ir2 < NEAR2) {                  // 코앞 → K턴: 열린쪽 '반대로' 풀락 후진 → 열린쪽으로 풀락 전진
+        if (rightOpen) {
+          setDrive(WF_BACK, -FULL); hudAct('⤿ 후진(핸들 좌·오른쪽 탈출)'); await sleep(HOLD_MS);
+          setDrive(DRIVE, FULL);   hudAct('↱ 전진(오른쪽으로)');        await sleep(HOLD_MS);
+        } else {
+          setDrive(WF_BACK, FULL); hudAct('⤾ 후진(핸들 우·왼쪽 탈출)'); await sleep(HOLD_MS);
+          setDrive(DRIVE, -FULL);  hudAct('↰ 전진(왼쪽으로)');          await sleep(HOLD_MS);
+        }
+      } else {                           // 접근 중 → 열린쪽으로 강하게 틀며 전진
+        setDrive(Math.round(DRIVE * 0.6), rightOpen ? TURN : -TURN);
+        hudAct(rightOpen ? '↱ 정면벽 우회피' : '↰ 정면벽 좌회피'); await sleep(HOLD_MS);
+      }
     } else if (ir1 < TOF1) {              // ② 좌 벽 근접 → 오른쪽으로 살짝
       setDrive(DRIVE, STEER); hudAct('↳ 좌벽→우로'); await sleep(HOLD_MS);
     } else if (ir3 < TOF3) {              // ③ 우 벽 근접 → 왼쪽으로 살짝

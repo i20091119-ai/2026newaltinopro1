@@ -160,6 +160,7 @@
       energy = Math.max(0, energy - CAUGHT_PENALTY);
       sfx('caught');
       beepFlash();
+      drawCount(caught);   // 알티노 도트매트릭스에 잡힌 횟수 표시
       oopsTicks = Math.round(800 / STREAM_MS);
       armed = false; cooldown = MIN_INTERVAL_TICKS;
     }
@@ -171,6 +172,27 @@
     soundTicks = Math.round(400 / STREAM_MS); ledTicks = Math.round(400 / STREAM_MS);
     document.body.classList.add('hit');
     setTimeout(() => document.body.classList.remove('hit'), 250);
+  }
+
+  // ---- 도트매트릭스에 잡힌 횟수 표시 ----
+  // 3x5 숫자 폰트(행 위→아래). 한 자리=가운데, 두 자리=좌/우.
+  const DIGITS = {
+    0:['111','101','101','101','111'], 1:['010','110','010','010','111'],
+    2:['111','001','111','100','111'], 3:['111','001','111','001','111'],
+    4:['101','101','111','001','001'], 5:['111','100','111','001','111'],
+    6:['111','100','111','101','111'], 7:['111','001','010','100','100'],
+    8:['111','101','111','101','111'], 9:['111','101','111','001','111'],
+  };
+  function stampDigit(d, baseCol) {           // baseCol=시작 열(1..), 행은 2..6
+    const g = DIGITS[d]; if (!g) return;
+    for (let dr = 0; dr < 5; dr++) for (let dc = 0; dc < 3; dc++)
+      if (g[dr][dc] === '1') state.dotOn(baseCol + dc, 2 + dr);
+  }
+  function drawCount(n) {
+    state.dotClear(); state.displayMode = 0xFF; state.dot.fill(0);
+    n = Math.max(0, Math.min(99, n | 0));
+    if (n < 10) stampDigit(n, 3);             // 한 자리 → 가운데(열 3~5)
+    else { stampDigit((n / 10) | 0, 1); stampDigit(n % 10, 5); } // 두 자리 → 좌(1~3)·우(5~7)
   }
 
   // ---- 운전 ----
@@ -320,6 +342,7 @@
     if ($('gradeLabel')) $('gradeLabel').textContent = L;
     $('startScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
+    drawCount(0);   // 시작 시 도트매트릭스 0 표시
   }
 
   function init() {
@@ -347,7 +370,7 @@
     $('probClose').addEventListener('click', () => $('repairModal').classList.add('hidden'));
     $('resetBtn').addEventListener('click', () => {
       caught = 0; energy = 500; coins = 0; speedTier = 0;
-      $('caughtVal').textContent = 0; updateEnergyUI(); toast('새 판 시작!');
+      $('caughtVal').textContent = 0; updateEnergyUI(); drawCount(0); toast('새 판 시작!');
     });
 
     $('c-ws').addEventListener('click', () => connect('ws'));
