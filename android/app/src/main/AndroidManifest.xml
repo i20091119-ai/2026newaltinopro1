@@ -4,9 +4,11 @@
     <!-- 원본 앱과 동일한 클래식 블루투스 권한 (targetSdk 30 기준 설치 시 부여) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <!-- 클래식 블루투스 기기 검색(discovery)에는 위치 권한이 필요 (API 23~30) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
     <!-- 안드로이드 12+ 에서 targetSdk를 31 이상으로 올릴 경우를 대비한 선언 -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
 
