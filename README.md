@@ -41,15 +41,19 @@
 - **단점**: 브리지용 컴퓨터가 1대 필요.
 - 절차: `bridge/README.md` 참고.
 
-### 방법 B — WebView 래퍼 앱 (브리지 없이 태블릿만으로)
-이 `webapp/`을 그대로 담은 얇은 Android 앱을 만들고, 앱 안에서 기존
-`BluetoothService`(RFCOMM SPP)를 그대로 재사용해 JS↔네이티브 브리지로
-연결합니다.
-- Android WebView + `@JavascriptInterface` 로 `sendFrame(byte[])` 하나만 노출.
-- JS의 `WebSocketTransport` 대신 `AndroidBridgeTransport`(window.AltinoNative)를 쓰면 됨.
-- **장점**: 태블릿 1대로 완결, 추가 하드웨어 없음.
-- **단점**: 아주 얇지만 Android 빌드(APK) 1개가 필요.
-- 원래 APK가 이미 이 구조이므로, `webapp/`을 `assets/`에 넣고 `loadUrl("file:///android_asset/webapp/index.html")` 하는 형태로 재사용 가능.
+### 방법 B — APK(WebView 래퍼) : 브리지 없이 태블릿만으로 ★
+**`android/` 에 바로 빌드 가능한 안드로이드 프로젝트로 제공합니다.**
+이 `webapp/`을 그대로 WebView로 띄우고, 네이티브가 RFCOMM SPP를 직접 처리합니다.
+- Android WebView + `@JavascriptInterface`(`window.AltinoNative`) ↔ 웹앱의
+  `AndroidBridgeTransport`. 브라우저 SPP 미지원 문제가 사라져 **브리지 불필요.**
+- **장점**: 태블릿 1대로 완결, 추가 하드웨어 없음. 검증된 웹 UI 그대로 재사용.
+- **단점**: APK 빌드 1회 필요(Android Studio에서 원클릭, 또는 `./gradlew assembleDebug`).
+- 빌드·설치 절차: **`android/README.md`** 참고.
+
+> 이 저장소를 만든 샌드박스에는 Android SDK가 없고 Google 다운로드 서버가
+> 정책상 차단되어, **여기서 완성된 .apk를 직접 뽑지는 못했습니다.** 대신
+> Gradle Wrapper까지 포함한 완성 프로젝트를 넣어 두었으니, SDK가 있는 PC나
+> Android Studio에서 그대로 빌드하면 됩니다.
 
 > 참고: 알티노의 블루투스 모듈을 BLE 지원 모듈로 교체하면 Web Bluetooth로
 > 직접 연결도 가능하지만, 펌웨어/모듈 변경이 필요해 이 저장소 범위 밖입니다.

@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'saeon.altino.webctrl'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "saeon.altino.webctrl"
+        minSdk 21
+        // 원본 앱과 동일하게 targetSdk 30 → 안드로이드 12+에서도 레거시
+        // BLUETOOTH 권한이 설치 시 부여되어 런타임 권한 절차가 단순해진다.
+        targetSdk 30
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+}
