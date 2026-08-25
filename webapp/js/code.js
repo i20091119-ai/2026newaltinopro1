@@ -22,9 +22,12 @@
   let note1 = 37, note2 = 41, repeatN = 3; // ③ 미션1 소리(도37·미41 기본, 3회)
   let zone = null;                   // ④ 미션2 배송지 문자
 
-  // 벽추종/주행 보정 (원본 기본값: tof1=90, tof2=100, tof3=90)
+  // 벽추종/주행 보정 (원본 실측값: tof1=90, tof2=100, tof3=90)
   let TOF1 = 90, TOF2 = 100, TOF3 = 90;
-  let DRIVE = 350, BACK = -320, STEER = 20;
+  let DRIVE = 350, STEER = 20;
+  const WF_BACK = -320;       // 벽추종 회피 후진(원본 -320, 0.5초 유지)
+  const HOLD_MS = 500;        // 원본: 회피/조향 동작을 0.5초 유지 후 재판단
+  const BUMP_SPEED = -350, BUMP_MS = 200; // 터널 진입 범프(원본 백속도 -350, 0.2초)
   const PHASE_TIMEOUT = 25000;
 
   // ② 복구코드 문제(원본 유형 유지: 초4 각도 / 중1 일차방정식 / 고1 이차방정식)
@@ -232,24 +235,24 @@
     $('sumLetter').textContent = zone ? zone.code : '--';
   }
 
-  // ---- 주행: TOF 벽추종(오른쪽_자율주행) ----
-  function wallFollowTick() {
-    if (sensor.ir2 < TOF2) {              // 앞(TOF-2) 막힘 → 후진하며 회피
-      if (sensor.ir1 < TOF1) setDrive(BACK, -STEER); else setDrive(BACK, STEER);
-    } else if (sensor.ir1 < TOF1) {       // 좌 벽 가까움 → 오른쪽으로 틀며 전진
-      setDrive(DRIVE, STEER);
-    } else if (sensor.ir3 < TOF3) {       // 우 벽 가까움 → 왼쪽으로 틀며 전진
-      setDrive(DRIVE, -STEER);
-    } else {                              // 뚫림 → 직진
-      setDrive(DRIVE, 0);
+  // ---- 주행: TOF 벽추종(오른쪽_자율주행) — 원본과 동일하게 동작을 0.5초 '유지' 후 재판단 ----
+  async function wallFollowStep() {
+    if (sensor.ir2 < TOF2) {              // 앞(TOF-2) 막힘 → 조향 틀고 후진(-320) 0.5초
+      setDrive(WF_BACK, sensor.ir1 < TOF1 ? -STEER : STEER); await sleep(HOLD_MS);
+    } else if (sensor.ir1 < TOF1) {       // 좌 벽 가까움 → 오른쪽-20 전진 0.5초
+      setDrive(DRIVE, STEER); await sleep(HOLD_MS);
+    } else if (sensor.ir3 < TOF3) {       // 우 벽 가까움 → 왼쪽-20 전진 0.5초
+      setDrive(DRIVE, -STEER); await sleep(HOLD_MS);
+    } else {                              // 뚫림 → 직진(즉시 재판단)
+      setDrive(DRIVE, 0); await sleep(STREAM_MS);
     }
   }
   async function driveUntil(cond) {
     const t0 = Date.now();
-    while (running && !cond() && Date.now() - t0 < PHASE_TIMEOUT) { wallFollowTick(); await sleep(STREAM_MS); }
+    while (running && !cond() && Date.now() - t0 < PHASE_TIMEOUT) { await wallFollowStep(); }
     setDrive(0, 0);
   }
-  async function backBump() { setDrive(BACK, 0); await sleep(300); setDrive(0, 0); state.steer(0); await sleep(200); }
+  async function backBump() { setDrive(BUMP_SPEED, 0); await sleep(BUMP_MS); setDrive(0, 0); state.steer(0); await sleep(200); }
   function showLetter(code) { const r = FONT[code] || FONT.D; state.displayMode = 0xFF; for (let i = 0; i < 8; i++) state.dot[i] = r[i]; }
   async function soundMission() {  // 차량 부저: 계이름1·계이름2 × 반복N, 0.5초 간격
     for (let i = 0; i < repeatN && running; i++) { state.soundSet(note1); await sleep(500); state.soundSet(note2); await sleep(500); }
@@ -257,7 +260,11 @@
   }
 
   async function runDelivery() {   // 원본 '실행1' 시퀀스 재현
-    if (running) return; running = true; setRunUI(true); toast('배송 시작! 🚚'); state.dotClear();
+    if (running) return; running = true; setRunUI(true); state.dotClear();
+    // 원본 도입부: 정지 1초 → GO 표시 1초 → 출발
+    setDrive(0, 0); await sleep(1000);
+    const goEl = $('goFlash'); if (goEl) { goEl.classList.remove('hidden'); await sleep(1000); goEl.classList.add('hidden'); }
+    if (!running) return; toast('배송 시작! 🚚');
     // 터널1까지 벽추종 → 미션1(소리)
     await driveUntil(() => sensor.cds < lightThresh);
     await backBump();
@@ -273,7 +280,7 @@
     }
     setDrive(0, 0); state.dotClear(); running = false; setRunUI(false);
   }
-  function stopRun() { running = false; setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); setRunUI(false); }
+  function stopRun() { running = false; setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); const g = $('goFlash'); if (g) g.classList.add('hidden'); setRunUI(false); }
   function setRunUI(on) { $('goRun').classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
 
   // ---- 연결 ----
