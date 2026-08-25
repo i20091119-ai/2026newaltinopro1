@@ -110,10 +110,21 @@ class AndroidBridgeTransport extends BaseTransport {
       this.connected = (s === 'connected');
       this._emit('status', s);
     };
+    // BLE 스캔 결과(무페어링) — 기기 발견마다 호출
+    window.__altinoOnScan = (json) => {
+      let d; try { d = JSON.parse(json); } catch (e) { return; }
+      if (d && d.address) this._emit('scan', d);
+    };
   }
-  // 페어링된 기기 목록 [{name,address}] — 여러 알티노 중 선택용
+  // BLE 스캔 시작 — 발견 기기는 on('scan', {name,address,rssi}) 로 전달
+  startScan() {
+    this._attach();
+    try { if (window.AltinoNative.startScan) window.AltinoNative.startScan(); else window.AltinoNative.listDevices(); } catch (e) {}
+  }
+  stopScan() { try { if (window.AltinoNative.stopScan) window.AltinoNative.stopScan(); } catch (e) {} }
+  // 하위호환: 즉시 배열이 필요하던 옛 UI용(BLE에선 스캔을 시작하고 빈 배열 반환)
   listDevices() {
-    try { return JSON.parse(window.AltinoNative.listDevices() || '[]'); } catch (e) { return []; }
+    try { const r = window.AltinoNative.listDevices(); return JSON.parse(r || '[]'); } catch (e) { return []; }
   }
   // 안드로이드 [설정 → 블루투스] 열기 (페어링하러 다녀오기)
   openSettings() {

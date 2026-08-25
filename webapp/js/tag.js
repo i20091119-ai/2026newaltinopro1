@@ -250,8 +250,24 @@
     return m[s] || s.replace('error:', '');
   }
 
-  // 연결 모달
+  // 연결 모달 (BLE 무페어링 실시간 스캔)
   let allDevs = [];
+  let scanner = null;
+  function addDev(d) {
+    if (!d || !d.address) return;
+    const i = allDevs.findIndex(x => x.address === d.address);
+    if (i >= 0) { if (d.name) allDevs[i].name = d.name; }
+    else allDevs.push({ name: d.name || '', address: d.address, rssi: d.rssi || 0 });
+    renderDevList();
+  }
+  function startScanning() {
+    if (!T.AndroidBridgeTransport.supported) return;
+    stopScanning();
+    scanner = new T.AndroidBridgeTransport();
+    scanner.on('scan', addDev);
+    scanner.startScan();
+  }
+  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} scanner = null; } }
   function renderDevList() {
     const list = $('devList'); const q = ($('devSearch').value || '').trim().toLowerCase();
     list.innerHTML = '';
@@ -259,31 +275,30 @@
     const devs = allDevs.filter(d => !q
       || (d.name || '').toLowerCase().includes(q)
       || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
-    if (!allDevs.length) return; // 힌트에서 안내
-    if (!devs.length) { list.innerHTML = '<p class="cap">검색 결과가 없어요. 번호를 확인하거나 [새로고침].</p>'; return; }
+    if (!devs.length) { list.innerHTML = '<p class="cap">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
+    devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
     devs.forEach(d => {
       const b = document.createElement('button');
       b.className = 'btn ghost'; b.style.textAlign = 'left';
-      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b><br><span style="font-size:.85rem;color:#9b8f86">${d.address}</span>`;
-      b.onclick = () => { connect('native', d.address); closeConn(); };
+      const bars = d.rssi ? (d.rssi > -60 ? '📶' : d.rssi > -80 ? '📶' : '·') : '';
+      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b> ${bars}<br><span style="font-size:.85rem;color:#9b8f86">${d.address}</span>`;
+      b.onclick = () => { stopScanning(); connect('native', d.address); closeConn(); };
       list.appendChild(b);
     });
   }
   function openConn() {
     const hint = $('connHint');
+    allDevs = [];
     if (T.AndroidBridgeTransport.supported) {
-      allDevs = new T.AndroidBridgeTransport().listDevices();
-      hint.innerHTML = allDevs.length
-        ? '차 바닥 스티커 번호(예: <b>BD77</b>)로 찾아 연결하세요.'
-        : '페어링된 알티노가 없어요. 아래 <b>[블루투스 설정 열기]</b>에서 먼저 페어링하세요.';
+      hint.innerHTML = '차 바닥 스티커 번호(예: <b>BD77</b>)로 찾아 탭하세요. <b>페어링 필요 없어요!</b>';
+      startScanning();
     } else {
-      allDevs = [];
       hint.textContent = '브라우저에서는 실제 블루투스가 안 돼요. 데모(목)로 UI를 테스트하세요.';
     }
     renderDevList();
     $('connModal').classList.remove('hidden');
   }
-  function closeConn() { $('connModal').classList.add('hidden'); }
+  function closeConn() { stopScanning(); $('connModal').classList.add('hidden'); }
   async function disconnect() {
     manualDisconnect = true;
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
@@ -351,10 +366,7 @@
     updateEnergyUI();
     startStream();                       // 게임 루프는 항상 가동(연결 전에도 UI 동작), 전송은 연결 시에만
     if (T.AndroidBridgeTransport.supported) {
-      // 여러 알티노가 페어링된 부스: 1대면 자동연결, 0/여러 대면 선택창
-      const devs = new T.AndroidBridgeTransport().listDevices();
-      if (devs.length === 1) connect('native', devs[0].address);   // 1대만 페어링돼 있으면 자동
-      else { setStatus('🔗 연결 안 됨', 'off'); openConn(); }        // 0/여러 대면 선택창(검색)
+      setStatus('🔗 연결 안 됨', 'off'); openConn();   // 무페어링 스캔 목록에서 스티커 번호로 선택
     } else setStatus('🔗 연결 안 됨', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);

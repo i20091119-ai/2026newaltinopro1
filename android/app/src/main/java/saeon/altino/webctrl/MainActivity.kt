@@ -22,7 +22,7 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
-    private lateinit var spp: AltinoSpp
+    private lateinit var ble: AltinoBle
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,28 +40,35 @@ class MainActivity : AppCompatActivity() {
         }
         web.webViewClient = WebViewClient()
 
-        // 읽기 스레드 -> UI 스레드에서 JS 실행
-        spp = AltinoSpp(
+        // 오케스트라와 동일한 BLE(ISSC 투명 UART) — 페어링 없이 스캔→연결.
+        ble = AltinoBle(
+            applicationContext,
             { js -> web.post { web.evaluateJavascript(js, null) } },
             { try { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) } catch (e: Exception) {} },
         )
-        web.addJavascriptInterface(spp, "AltinoNative")
+        web.addJavascriptInterface(ble, "AltinoNative")
 
         requestBtPermsIfNeeded()
         web.loadUrl("file:///android_asset/webapp/home.html")
     }
 
-    /** 안드로이드 12+ 에서 targetSdk를 31 이상으로 올린 경우에만 런타임 권한이 필요. */
+    /** BLE 스캔에 필요한 런타임 권한 요청.
+     *  - API ≤30: 클래식/BLE 검색에 위치 권한(ACCESS_FINE_LOCATION) 필요.
+     *  - API 31+: BLUETOOTH_SCAN(neverForLocation) + BLUETOOTH_CONNECT. */
     private fun requestBtPermsIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 31 && applicationInfo.targetSdkVersion >= 31) {
-            val need = arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
-                .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
-            if (need.isNotEmpty()) ActivityCompat.requestPermissions(this, need.toTypedArray(), 1)
+        val need = ArrayList<String>()
+        if (Build.VERSION.SDK_INT >= 31) {
+            for (p in arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT))
+                if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) need.add(p)
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                need.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        if (need.isNotEmpty()) ActivityCompat.requestPermissions(this, need.toTypedArray(), 1)
     }
 
     override fun onDestroy() {
-        try { spp.disconnect() } catch (_: Exception) {}
+        try { ble.disconnect() } catch (_: Exception) {}
         web.destroy()
         super.onDestroy()
     }

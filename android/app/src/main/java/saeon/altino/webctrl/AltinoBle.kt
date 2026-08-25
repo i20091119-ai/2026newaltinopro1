@@ -41,16 +41,22 @@ class AltinoBle(
     companion object {
         private const val TAG = "AltinoBle"
         private val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        // 알티노 특성 UUID를 알게 되면 여기에 못박으면 자동탐지보다 우선 사용된다.
-        private val PREFERRED_WRITE: UUID? = null
-        private val PREFERRED_NOTIFY: UUID? = null
-        // 흔한 투명 UART 특성(자동탐지 우선순위 힌트)
+        // 오케스트라(orchestra2) libapp.so에서 확정: ISSC 투명 UART
+        private val SVC_UART: UUID = UUID.fromString("49535343-fe7d-4ae5-8fa9-9fafd205e455")
+        private val PREFERRED_WRITE: UUID? = UUID.fromString("49535343-8841-43f4-a8d4-ecbe34729bb3")  // 앱→로봇
+        private val PREFERRED_NOTIFY: UUID? = UUID.fromString("49535343-1e4d-4bd9-ba61-23c647249616") // 로봇→앱
+        // 자동탐지 폴백 힌트(펌웨어가 달라도 대응)
         private val HINT_UUIDS = listOf(
-            "0000ffe1-0000-1000-8000-00805f9b34fb", // HM-10 FFE1 (write+notify)
-            "0000ffe0-0000-1000-8000-00805f9b34fb",
-            "6e400002-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART TX(write)
-            "6e400003-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART RX(notify)
+            "49535343-8841-43f4-a8d4-ecbe34729bb3",
+            "49535343-1e4d-4bd9-ba61-23c647249616",
+            "0000ffe1-0000-1000-8000-00805f9b34fb", // HM-10 FFE1
+            "6e400002-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART TX
+            "6e400003-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART RX
         ).map { it.lowercase() }
+        // 스캔 노출 대상 이름 접두(긴 것부터 검사)
+        private val NAME_PREFIXES = listOf(
+            "ALTINO-NEO", "ALTINO-LITE", "ALTINO-N", "ALTINO-L", "ALTINO", "SMARTFARM", "REALFARM"
+        )
     }
 
     private val adapter: BluetoothAdapter? = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -81,11 +87,13 @@ class AltinoBle(
             private fun handle(r: ScanResult) {
                 val d = r.device ?: return
                 val addr = d.address ?: return
-                if (!seen.add(addr)) return
                 val name = try { d.name } catch (e: SecurityException) { null } ?: r.scanRecord?.deviceName ?: ""
-                // 이름 없는 잡다한 비콘은 숨기고, 알티노류만 노출(이름 미확인은 주소로 표시)
-                val show = name.isNotBlank() || true
-                if (show) pushScan(name, addr, r.rssi)
+                val up = name.uppercase()
+                val isAltino = NAME_PREFIXES.any { up.startsWith(it) }
+                // 알티노류만 노출(부스의 잡다한 BT 기기 제외). 이름 미확정 기기는 제외.
+                if (!isAltino) return
+                if (!seen.add(addr)) return
+                pushScan(name, addr, r.rssi)
             }
         }
         scanCb = cb
@@ -93,7 +101,11 @@ class AltinoBle(
         // 저지연 스캔(부스에서 빠르게 뜨도록)
         val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
         try {
-            a.bondedDevices?.forEach { pushScan(it.name ?: "", it.address, 0) } // 이미 알던 것도 목록에
+            // 이미 알던(본딩) 알티노도 목록에 먼저
+            a.bondedDevices?.forEach { d ->
+                val up = (d.name ?: "").uppercase()
+                if (NAME_PREFIXES.any { up.startsWith(it) } && seen.add(d.address)) pushScan(d.name ?: "", d.address, 0)
+            }
             scanner?.startScan(null, settings, cb)
             status("scanning")
         } catch (e: Exception) { Log.e(TAG, "startScan", e); status("error:scan-failed") }

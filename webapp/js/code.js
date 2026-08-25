@@ -367,17 +367,62 @@
   function setRunUI(on) { $('goRun').classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
 
   // ---- 연결 ----
-  async function connect(kind) {
+  async function connect(kind, addr) {
     await disconnect();
     try {
-      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); setStatus('🔗 연결 중…', 'pending'); await transport.connect(); }
+      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); setStatus('🔗 연결 중…', 'pending'); if (addr) await transport.connectTo(addr); else await transport.connect(); }
       else { transport = new T.MockTransport(); await transport.connect({}); }
       transport.on('status', s => { if (s === 'connected') setStatus('🔗 연결됨 ✓', 'ok'); else if (s === 'disconnected') setStatus('🔗 연결 끊김', 'off'); else setStatus('⚠ ' + s.replace('error:', ''), 'err'); });
       transport.on('data', bytes => { for (const f of assembler.push(bytes)) onSensor(f); });
       if (kind !== 'native') setStatus('🔗 연결됨 ✓ (데모)', 'ok');
     } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; }
   }
-  async function disconnect() { stopRun(); if (transport) { try { await transport.disconnect(); } catch (e) {} } transport = null; }
+  async function disconnect() { stopRun(); stopScanning(); if (transport) { try { await transport.disconnect(); } catch (e) {} } transport = null; }
+
+  // ---- BLE 무페어링 스캔 피커 (동적 오버레이) ----
+  let scanner = null, scanDevs = [];
+  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} scanner = null; } }
+  function pickAndConnect() {
+    if (!T.AndroidBridgeTransport.supported) { connect('mock'); return; }
+    scanDevs = [];
+    let ov = $('scanOverlay');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'scanOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(20,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:40';
+      ov.innerHTML = `<div style="background:#fff;border-radius:20px;padding:20px 22px;width:min(560px,92vw);max-height:82vh;overflow:auto;box-shadow:var(--shadow)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <h2 style="margin:0">🔗 알티노 연결 <span style="font-size:.9rem;color:var(--mut)">(페어링 필요 없어요)</span></h2>
+          <button id="scanClose" class="btn ghost" style="padding:6px 12px">닫기</button></div>
+        <p class="lead" style="margin:0 0 8px">차 바닥 스티커 번호(예: <b>BD77</b>)를 찾아 탭하세요.</p>
+        <input id="scanSearch" type="text" placeholder="번호로 검색 (예: BD77)" style="width:100%;margin-bottom:8px">
+        <div id="scanList"><p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p></div>
+        <div style="margin-top:10px;display:flex;gap:8px"><button id="scanSettings" class="btn ghost">📶 블루투스 설정</button></div></div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#scanClose').onclick = () => { stopScanning(); ov.classList.add('hidden'); };
+      ov.querySelector('#scanSettings').onclick = () => { try { new T.AndroidBridgeTransport().openSettings(); } catch (e) {} };
+      ov.querySelector('#scanSearch').addEventListener('input', renderScan);
+    }
+    ov.classList.remove('hidden');
+    stopScanning();
+    scanner = new T.AndroidBridgeTransport();
+    scanner.on('scan', d => { if (!d || !d.address) return; const i = scanDevs.findIndex(x => x.address === d.address); if (i >= 0) { if (d.name) scanDevs[i].name = d.name; } else scanDevs.push({ name: d.name || '', address: d.address, rssi: d.rssi || 0 }); renderScan(); });
+    scanner.startScan();
+    renderScan();
+  }
+  function renderScan() {
+    const list = $('scanList'); if (!list) return;
+    const q = ($('scanSearch') && $('scanSearch').value || '').trim().toLowerCase();
+    const devs = scanDevs.filter(d => !q || (d.name || '').toLowerCase().includes(q) || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
+    if (!devs.length) { list.innerHTML = '<p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
+    devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
+    list.innerHTML = '';
+    devs.forEach(d => {
+      const b = document.createElement('button'); b.className = 'btn ghost'; b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px';
+      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b><br><span style="font-size:.85rem;color:var(--mut)">${d.address}</span>`;
+      b.onclick = () => { stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address); };
+      list.appendChild(b);
+    });
+  }
 
   function noteOptions(sel, def) { Object.keys(NOTE_NAME).forEach(code => { const o = document.createElement('option'); o.value = code; o.textContent = NOTE_NAME[code]; if (+code === def) o.selected = true; sel.appendChild(o); }); }
 
@@ -413,7 +458,7 @@
     bind('calSideKp', v => SIDE_KP = v / 100, 'calSideKpV');
     bind('calSideTarget', v => SIDE_TARGET = v, 'calSideTargetV');
     // 연결
-    $('connBtn').onclick = () => { if (T.AndroidBridgeTransport.supported) connect('native'); else connect('mock'); };
+    $('connBtn').onclick = () => { if (T.AndroidBridgeTransport.supported) pickAndConnect(); else connect('mock'); };
     $('btSettings').onclick = () => { if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings(); else toast('실기(APK)에서만 열려요'); };
 
     window.addEventListener('blur', stopRun);
