@@ -18,24 +18,25 @@
   .hidden{display:none !important}
   .btn{border:0;border-radius:16px;font-family:inherit;font-size:1.05rem;padding:12px 18px;cursor:pointer;background:var(--blue);color:#fff;box-shadow:var(--shadow)}
   .btn:active{transform:translateY(2px)}.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none}
-  .btn.mint{background:var(--mint)}.btn.sun{background:var(--sun);color:#5a3200}.btn.coral{background:var(--coral)}.btn:disabled{opacity:.45}
-  .btn.big{font-size:1.4rem;padding:20px}
+  .btn.mint{background:var(--mint)}.btn.coral{background:var(--coral)}.btn:disabled{opacity:.45}
+  .btn.big{font-size:1.4rem;padding:20px}.btn.sm{padding:7px 12px;font-size:.85rem;margin-top:6px}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .topbar a{color:var(--blue);text-decoration:none}
-  .chip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow);font-size:.9rem}
+  .chip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow);font-size:.85rem}
   .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px}
   .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}
-  .stepper{display:flex;gap:6px;justify-content:center}
-  .dot-step{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px}
-  .dot-step.on{background:#fff3e0;border-color:var(--sun);color:var(--ink)}
-  .dot-step.done{color:var(--mint);border-color:#b9ecdc}
+  .stepper{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+  .dot-step{font-size:.82rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 11px}
+  .dot-step.on{background:#fff3e0;border-color:var(--sun);color:var(--ink)}.dot-step.done{color:var(--mint);border-color:#b9ecdc}
   .stage{flex:1;min-height:0;display:flex}
-  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 20px;width:100%;overflow:auto}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 20px;width:100%;overflow:auto}
   .eyebrow{color:var(--sun);font-weight:700;font-size:.85rem;letter-spacing:.08em}
-  h1{font-size:1.6rem;margin:2px 0 6px}.lead{color:var(--mut);margin:0 0 14px}
-  .alert{background:linear-gradient(180deg,#fff3e0,#fff);border:2px solid #ffe0a3;border-radius:16px;padding:12px 14px;margin-bottom:14px}
+  h1{font-size:1.55rem;margin:2px 0 6px}.lead{color:var(--mut);margin:0 0 12px}
+  h2{font-size:1.1rem;margin:6px 0}
+  .alert{background:linear-gradient(180deg,#fff3e0,#fff);border:2px solid #ffe0a3;border-radius:16px;padding:11px 14px;margin-bottom:12px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  input[type=number],input[type=text]{font-family:inherit;font-size:1.3rem;padding:10px 12px;border-radius:12px;border:2px solid var(--line);width:130px;text-align:center}
+  input[type=number],input[type=text],select{font-family:inherit;font-size:1.25rem;padding:10px 12px;border-radius:12px;border:2px solid var(--line);text-align:center}
+  input[type=number]{width:130px}select{padding:10px 8px}
   input[type=range]{width:100%;accent-color:var(--mint)}
   table{border-collapse:collapse;margin:10px 0;font-size:1rem}
   th,td{border:2px solid var(--line);padding:8px 16px;text-align:left}th{background:#fff3e0;color:var(--mut)}
@@ -45,23 +46,30 @@
   .gradebtn.sel{background:var(--blue);color:#fff;border-color:var(--blue)}
   .prob{background:#f6fbff;border:2px solid #d3e8ff;border-radius:14px;padding:14px;font-size:1.15rem;margin:8px 0}
   .codebox{background:linear-gradient(180deg,#e9fbf4,#fff);border:2px solid #bdeede;border-radius:14px;padding:14px;text-align:center;margin-top:8px}
-  .codebox .val{font-size:2.4rem;font-weight:800;color:var(--mint)}
+  .codebox .val{font-size:2.2rem;font-weight:800;color:var(--mint)}
   .fb{min-height:1.3em;color:var(--coral);font-weight:700;margin-top:6px}
-  .codeline{display:flex;flex-direction:column;min-height:0;height:100%}
-  #program{flex:1;min-height:0;overflow:auto;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;background:#fbf7ef;border:2px dashed var(--line);border-radius:14px;padding:12px;margin:8px 0}
-  .cap{color:var(--mut);font-size:.9rem}
-  .pblock{display:flex;align-items:center;gap:6px;background:#e9fbf4;border:2px solid #bdeede;border-radius:14px;padding:8px 10px;font-size:1.05rem;position:relative;cursor:pointer}
-  .pblock.left,.pblock.right{background:#f0e9ff;border-color:#ddd0ff}.pblock.fwd{background:#eaf6ff;border-color:#d3e8ff}
-  .pblock.run{outline:3px solid var(--sun);transform:scale(1.05)}
-  .pblock .idx{background:#fff;border-radius:999px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--mut)}
-  .pdel{border:0;background:transparent;color:#c0392b;cursor:pointer}
-  .palette{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-  .palette button{font-family:inherit;font-size:1.1rem;padding:14px;border:0;border-radius:14px;color:#fff;cursor:pointer;box-shadow:var(--shadow)}
-  .pb-wall{background:var(--mint);grid-column:1/3;font-weight:700}.pb-fwd{background:var(--blue)}.pb-left{background:var(--grape)}.pb-right{background:#7fb2ff}
-  details.cal{margin-top:8px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 12px}
+  .soundcode{background:#fff8ec;border:2px solid #ffe0a3;border-radius:14px;padding:14px;font-size:1.1rem;line-height:2}
+  /* ① 센서-수학 측정 */
+  .measure{display:flex;align-items:center;gap:14px;justify-content:center;margin:8px 0}
+  .mcell{background:#f6fbff;border:2px solid #d3e8ff;border-radius:16px;padding:12px 18px;text-align:center;min-width:150px}
+  .mcell .mlabel{color:var(--mut);font-size:.85rem}
+  .mcell .mval{font-size:2rem;font-weight:800;color:var(--blue);line-height:1.15}
+  .mplus{font-size:1.6rem;color:var(--mut)}
+  .calcrow{text-align:center;font-size:1.3rem;margin:10px 0 4px}
+  /* ⑤ 블록 조립 */
+  .slots{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+  .slot{border:2px dashed var(--line);border-radius:14px;min-height:54px;display:flex;align-items:center;padding:0 12px;color:var(--mut);background:#fafafa}
+  .slot.ok{border-style:solid;border-color:var(--mint);background:#effbf6}
+  .palette{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .blk{display:flex;align-items:center;gap:10px;border:2px solid var(--line);border-radius:14px;padding:11px 14px;background:#fff;cursor:pointer;font-size:1.02rem;box-shadow:var(--shadow);text-align:left;font-family:inherit;color:var(--ink);width:100%}
+  .blk:active{transform:translateY(2px)}
+  .blk .bic{font-size:1.4rem}
+  .blk.blue{border-color:#bcd8ff;background:#f4faff}.blk.mint{border-color:#bdeede;background:#effbf6}
+  .blk.sun{border-color:#ffe0a3;background:#fff8ec}.blk.coral{border-color:#f6c9c4;background:#fff2f1}
+  .foot{display:flex;justify-content:space-between;margin-top:12px;gap:10px}
+  details.cal{margin-top:10px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 12px}
   details.cal summary{cursor:pointer;color:var(--mut);font-size:.9rem}
   details.cal label{font-size:.85rem;color:var(--mut);display:block;margin-top:6px}
-  .foot{display:flex;justify-content:space-between;margin-top:12px;gap:10px}
   #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--mint);color:#fff;padding:12px 22px;border-radius:999px;font-weight:700;opacity:0;transition:.25s;pointer-events:none;z-index:20;box-shadow:var(--shadow)}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
@@ -70,10 +78,10 @@
   <div class="topbar">
     <a href="home.html">← 홈</a>
     <div class="stepper">
-      <span class="dot-step">1 빛</span><span class="dot-step">2 코드</span><span class="dot-step">3 배송지</span><span class="dot-step">4 코딩</span><span class="dot-step">5 출발</span>
+      <span class="dot-step">1 빛</span><span class="dot-step">2 암호</span><span class="dot-step">3 소리</span><span class="dot-step">4 배송지</span><span class="dot-step">5 조립</span><span class="dot-step">6 실행</span>
     </div>
     <div class="row">
-      <span class="chip">🔆 조도 <b id="cdsNow">–</b> · 🧱앞 <b id="ir2Now">–</b></span>
+      <span class="chip">🔆<b id="cdsNow">–</b> · TOF <b id="tofNow">–</b></span>
       <span id="battChip" class="status" style="display:none">🔋 –</span>
       <button id="connBtn" class="btn ghost" style="padding:6px 10px;font-size:.85rem">🔗 연결</button>
       <button id="btSettings" class="btn ghost" style="padding:6px 10px;font-size:.85rem">📶 설정</button>
@@ -82,87 +90,97 @@
   </div>
 
   <div class="stage">
-    <!-- STEP 1: 빛 기준 -->
+    <!-- 1 빛: 센서 숫자로 수학 -->
     <section id="step1" class="card">
       <div class="eyebrow">긴급 · 태양풍 경보</div>
       <h1>스스로 달리는 배송차 ☀️🚚</h1>
-      <div class="alert">태양 폭발로 <b>GPS·통신이 교란</b>됐어요. 하지만 이 배송차는 GPS를 안 써요 — <b>라이다로 주변을</b>, <b>빛으로 터널을</b> 보고 스스로 달려요. 손상된 <b>주행 코드</b>만 복구하면 임무 완수!</div>
-      <h2>먼저 '터널'을 알아보게 하자</h2>
-      <p class="lead">차를 <b>밝은 곳</b>과 <b>어두운 터널 안</b>에 두고 위쪽 <b>🔆조도</b> 값을 봐요. 두 값의 <b>사이값</b>을 기준으로 정하면, 그보다 어두워질 때 "터널!"로 판단해요.</p>
-      <div class="row"><label>터널 판단 기준(조도):</label><input id="lightInput" type="number" value="300"><span class="cap">예: 밝을 때 620 / 터널 안 90 → 사이값 300</span></div>
-      <div class="foot"><span></span><button id="toStep2" class="btn">빛 기준 정했어요 →</button></div>
+      <div class="alert">GPS·통신이 교란됐어요. 이 차는 <b>라이다로 벽을, 빛(조도)으로 터널을</b> 보고 스스로 달려요. 센서 숫자로 <b>주행 코드</b>를 복구하면 임무 완수!</div>
+      <h2>① 조도값 — 센서 숫자로 '터널 기준' 계산</h2>
+      <p class="lead">밝은 곳과 터널 안에서 <b>🔆조도</b>를 측정하고, 두 값의 <b>사이값(평균)</b>을 구해요. 이 값보다 어두우면 차가 “터널!”로 판단해요.</p>
+      <div class="measure">
+        <div class="mcell"><div class="mlabel">밝은 곳 조도</div><div class="mval" id="brightVal">620</div><button class="btn ghost sm" id="capBright">📷 측정</button></div>
+        <div class="mplus">＋</div>
+        <div class="mcell"><div class="mlabel">터널 안 조도</div><div class="mval" id="darkVal">90</div><button class="btn ghost sm" id="capDark">📷 측정</button></div>
+      </div>
+      <div class="calcrow">사이값 = ( <b id="calcA">620</b> ＋ <b id="calcB">90</b> ) ÷ 2 = ?</div>
+      <div class="row" style="justify-content:center"><input id="lightInput" type="number" placeholder="?"><button id="lightOk" class="btn">확인</button></div>
+      <div class="fb" id="lightFb" style="text-align:center"></div>
+      <div class="foot"><span></span><button id="toStep2" class="btn hidden">다음 →</button></div>
     </section>
 
-    <!-- STEP 2: 복구코드 -->
+    <!-- 2 암호 -->
     <section id="step2" class="card hidden">
-      <div class="eyebrow">1단계 · 주행 코드 복구</div>
+      <div class="eyebrow">② 암호 — 주행 코드 복구</div>
       <h1>계산으로 복구 코드를 구하자 🔑</h1>
-      <p class="lead">학년을 고르고 문제를 풀면 <b>복구 코드</b>가 나와요.</p>
       <div class="grades">
-        <button class="gradebtn" data-g="e4">초4<br><span class="cap">각도</span></button>
-        <button class="gradebtn" data-g="m1">중1<br><span class="cap">일차방정식</span></button>
-        <button class="gradebtn" data-g="h1">고1<br><span class="cap">이차방정식</span></button>
+        <button class="gradebtn" data-g="e4">초4<br><span class="lead" style="margin:0">각도</span></button>
+        <button class="gradebtn" data-g="m1">중1<br><span class="lead" style="margin:0">일차방정식</span></button>
+        <button class="gradebtn" data-g="h1">고1<br><span class="lead" style="margin:0">이차방정식</span></button>
       </div>
       <div id="probWrap" class="hidden">
         <div class="prob" id="probText"></div>
         <div class="row"><input id="ansInput" type="number" placeholder="?"><button id="ansOk" class="btn">확인</button></div>
         <div class="fb" id="ansFb"></div>
-        <div id="codeReveal" class="codebox hidden"><div class="cap">복구 코드</div><div class="val" id="codeVal">--</div></div>
+        <div id="codeReveal" class="codebox hidden"><div class="lead" style="margin:0">복구 코드(암호)</div><div class="val" id="codeVal">--</div></div>
       </div>
-      <div class="foot"><button class="btn ghost" data-back="1">← 이전</button><button id="toStep3" class="btn hidden">배송지 확인 →</button></div>
+      <div class="foot"><button class="btn ghost" data-back="1">← 이전</button><button id="toStep3" class="btn hidden">다음 →</button></div>
     </section>
 
-    <!-- STEP 3: 배송지 -->
+    <!-- 3 소리 미션 -->
     <section id="step3" class="card hidden">
-      <div class="eyebrow">2단계 · 배송지 확인</div>
-      <h1>오늘의 배송지 📦</h1>
-      <p class="lead">이번 배송지: <b id="destName">--</b> — 표에서 <b>배송지 문자</b>를 찾아요. (도착하면 도트매트릭스에 이 글자가 떠요!)</p>
-      <table id="zoneTable"><tr><th>배송 구역</th><th>문자</th></tr></table>
-      <div class="codebox"><div class="cap">배송지 문자</div><div class="val" id="letterVal">--</div></div>
-      <div class="foot"><button class="btn ghost" data-back="2">← 이전</button><button id="toStep4" class="btn">주행 코드 만들기 →</button></div>
-    </section>
-
-    <!-- STEP 4: 블록 코딩 -->
-    <section id="step4" class="card">
-      <div class="codeline">
-        <div class="eyebrow">3단계 · 주행 코드 완성</div>
-        <h1>블록으로 코스를 완성하자 🧩</h1>
-        <p class="lead">「🧱벽까지 직진 → 회전」을 이어 붙여 n자 코스를 통과하게 만들어요. 벽은 센서로 감지해 안 부딪혀요.</p>
-        <div id="program"></div>
-        <div class="palette">
-          <button class="pb-wall" data-block="wall">🧱 벽까지 직진 (센서로 벽 감지)</button>
-          <button class="pb-fwd" data-block="fwd">⬆️ 앞으로</button>
-          <button class="pb-left" data-block="left">↰ 좌회전</button>
-          <button class="pb-right" data-block="right">↱ 우회전</button>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <button id="undoBtn" class="btn ghost">↩️ 마지막</button>
-          <button id="clearBtn" class="btn ghost">🗑️ 전체</button>
-          <span class="cap">※ 앞으로 블록은 눌러 칸 수 변경</span>
-        </div>
-        <div class="foot"><button class="btn ghost" data-back="3">← 이전</button><button id="toStep5" class="btn">출발 준비 →</button></div>
+      <div class="eyebrow">③ 미션1 소리 — 터널에서 낼 소리</div>
+      <h1>터널 소리를 코딩하자 🎵</h1>
+      <p class="lead">터널을 지날 때 차 부저로 두 음을 번갈아 <b>몇 번</b> 낼지 정해요. (활동지 참고)</p>
+      <div class="soundcode">
+        <div class="row"><span>🔁 <input id="repeatN" type="number" value="3" style="width:90px"> 번 반복:</span></div>
+        <div class="row">소리 <select id="note1"></select> → 0.5초 → 소리 <select id="note2"></select> → 0.5초</div>
       </div>
+      <div class="foot"><button class="btn ghost" data-back="2">← 이전</button><button id="toStep4" class="btn">다음 →</button></div>
     </section>
 
-    <!-- STEP 5: 출발 -->
+    <!-- 4 배송지 -->
+    <section id="step4" class="card hidden">
+      <div class="eyebrow">④ 미션2 배송지 문자</div>
+      <h1>오늘의 배송지 📦</h1>
+      <p class="lead">배송지: <b id="destName">--</b> — 표에서 <b>문자</b>를 찾아요. 도착하면 이 글자가 떠요!</p>
+      <table id="zoneTable"><tr><th>배송 구역</th><th>문자</th></tr></table>
+      <div class="codebox"><div class="lead" style="margin:0">표시할 문자</div><div class="val" id="letterVal">--</div></div>
+      <div class="foot"><button class="btn ghost" data-back="3">← 이전</button><button id="toStep5" class="btn">다음 →</button></div>
+    </section>
+
+    <!-- 5 블록 조립 -->
     <section id="step5" class="card hidden">
-      <div class="eyebrow">출발!</div>
-      <h1>이제 배송차를 깨우자 🚦</h1>
+      <div class="eyebrow">⑤ 프로그램 조립 — 블록 순서 맞추기</div>
+      <h1>배송 프로그램을 완성하자 🧩</h1>
+      <p class="lead">내가 정한 값이 담긴 블록들이에요. <b>실행 순서</b>대로 탭해서 위 칸에 놓아요. 순서가 맞으면 출발!</p>
+      <div class="slots" id="slots"></div>
+      <div class="palette" id="palette"></div>
+      <div class="fb" id="blockFb"></div>
+      <div class="foot"><button class="btn ghost" data-back="4">← 이전</button><button id="toStep6" class="btn hidden">출발 준비 →</button></div>
+    </section>
+
+    <!-- 6 실행 -->
+    <section id="step6" class="card hidden">
+      <div class="eyebrow">⑥ 출발!</div>
+      <h1>주행 코드 복구 완료! 🚦</h1>
       <table>
-        <tr><th>빛 기준(조도)</th><td id="sumLight">--</td></tr>
-        <tr><th>복구 코드</th><td id="sumCode">--</td></tr>
-        <tr><th>배송지 문자</th><td id="sumLetter">--</td></tr>
+        <tr><th>① 조도값</th><td id="sumLight">--</td></tr>
+        <tr><th>② 암호</th><td id="sumCode">--</td></tr>
+        <tr><th>③ 소리</th><td id="sumSound">--</td></tr>
+        <tr><th>④ 배송지 문자</th><td id="sumLetter">--</td></tr>
       </table>
-      <p class="lead">출발하면 스스로 달리다가 <b>터널(어두움)</b>에서 소리 미션 🎵, <b>도착</b>하면 배송지 문자를 표시하고 멈춰요.</p>
+      <p class="lead">출발하면 <b>자동으로 벽을 따라</b> 달리다가, 터널(어두움)에서 소리 미션 🎵, 도착하면 문자를 표시하고 멈춰요.</p>
       <button id="goRun" class="btn mint big">🚚 배송 출발!</button>
       <button id="stopRun" class="btn coral big hidden">■ 정지</button>
       <details class="cal">
-        <summary>🔧 주행 보정 (강사용)</summary>
-        <label>벽 감지 거리 <b id="calWallV">130</b></label><input id="calWall" type="range" min="40" max="400" step="5" value="130">
-        <label>90° 회전 시간 <b id="calTurnV">700</b> ms</label><input id="calTurn" type="range" min="200" max="1500" step="50" value="700">
-        <label>직진 속도 <b id="calSpeedV">320</b></label><input id="calSpeed" type="range" min="150" max="700" step="10" value="320">
+        <summary>🔧 벽추종 보정 (강사용) · 앞센서 TOF-1/2/3 값은 상단 참고</summary>
+        <label>TOF-1(좌) 임계 <b id="calTof1V">90</b></label><input id="calTof1" type="range" min="30" max="400" step="5" value="90">
+        <label>TOF-2(정면) 임계 <b id="calTof2V">100</b></label><input id="calTof2" type="range" min="30" max="700" step="5" value="100">
+        <label>TOF-3(우) 임계 <b id="calTof3V">90</b></label><input id="calTof3" type="range" min="30" max="400" step="5" value="90">
+        <label>직진 속도 <b id="calDriveV">350</b></label><input id="calDrive" type="range" min="150" max="700" step="10" value="350">
+        <label>조향 세기 <b id="calSteerV">20</b></label><input id="calSteer" type="range" min="5" max="127" step="1" value="20">
       </details>
-      <div class="foot"><button id="backStep4" class="btn ghost" data-back="4">← 코드 고치기</button><span></span></div>
+      <div class="foot"><button class="btn ghost" data-back="5">← 이전</button><span></span></div>
     </section>
   </div>
 
