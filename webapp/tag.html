@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>수학 연료 꼬리잡기</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  body.hit{animation:flash .25s;}
+  @keyframes flash{0%{background:#3a0d0d}100%{}}
+  .game{max-width:760px;margin:0 auto}
+  .hud{display:flex;align-items:center;gap:14px;margin:6px 0 14px}
+  .energywrap{flex:1}
+  .energywrap .top{display:flex;justify-content:space-between;font-size:13px;color:var(--mut,#8ea3b5);margin-bottom:4px}
+  .track{height:26px;background:#0c141c;border:1px solid var(--line,#26333f);border-radius:14px;overflow:hidden}
+  #energyBar{height:100%;width:40%;background:linear-gradient(90deg,#37c0a8,#3ecf8e);transition:width .12s linear}
+  #energyBar.low{background:linear-gradient(90deg,#f5a623,#e5484d)}
+  .caughtbox{text-align:center;background:#18222e;border:1px solid var(--line,#26333f);border-radius:12px;padding:8px 14px;min-width:96px}
+  .caughtbox .n{font-size:30px;font-weight:800;line-height:1}
+  .caughtbox .l{font-size:11px;color:var(--mut,#8ea3b5)}
+  #fuelWarn{background:#3a1010;border:1px solid #e5484d;color:#ffd7d7;border-radius:10px;padding:8px 12px;text-align:center;font-weight:700;margin-bottom:10px}
+  body.nofuel .pad.up,body.nofuel .pad.down{opacity:.4}
+  .main{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  .dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:10px;aspect-ratio:1;max-width:320px;margin:0 auto}
+  .pad{font-size:26px;border:0;border-radius:14px;background:#243342;color:#e7eef5;touch-action:none}
+  .pad.up{grid-area:1/2}.pad.left{grid-area:2/1}.pad.right{grid-area:2/3}.pad.down{grid-area:3/2}
+  .pad.pressed{background:#37c0a8;color:#04140e}
+  .side .btn{width:100%;margin-bottom:10px;padding:18px}
+  .charge{background:linear-gradient(180deg,rgba(56,207,168,.16),rgba(56,207,168,.04));border:1px solid rgba(56,207,168,.5);font-size:1.15rem}
+  .slider label{font-size:12px;color:var(--mut,#8ea3b5)} .slider{margin-bottom:8px}
+  input[type=range]{width:100%;accent-color:#37c0a8}
+  details.viewer{margin-top:14px;background:#16203a;border:1px solid var(--line,#26333f);border-radius:12px;padding:10px 14px}
+  details.viewer summary{cursor:pointer;color:var(--mut,#8ea3b5);font-size:13px}
+  .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .s{background:#0c141c;border:1px solid var(--line,#26333f);border-radius:8px;padding:8px}
+  .s .l{font-size:11px;color:var(--mut,#8ea3b5)} .s .v{font-size:18px;font-variant-numeric:tabular-nums}
+  .s.rear{border-color:#37c0a8}
+  .modal{position:fixed;inset:0;background:rgba(4,8,14,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9}
+  .modal.hidden{display:none}
+  .sheet{background:#16203a;border:1px solid var(--line,#26333f);border-radius:16px;padding:22px;max-width:380px;width:100%;text-align:center}
+  .sheet .q{font-size:2rem;font-weight:800;margin:6px 0 14px;font-family:ui-monospace,monospace}
+  .sheet input{width:100%;font-size:1.6rem;text-align:center;padding:12px;border-radius:12px;border:1px solid var(--line,#26333f);background:#0f1830;color:#eaf0ff;font-weight:700}
+  .sheet .row{display:flex;gap:8px;margin-top:12px}
+  .sheet .fb{color:#ff6b6b;min-height:1.3em;margin-top:8px;font-weight:600}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#37c0a8;color:#04140e;
+    padding:10px 18px;border-radius:999px;font-weight:800;opacity:0;transition:.25s;pointer-events:none;z-index:20}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .nav a{color:#37c0a8;font-size:13px;text-decoration:none}
+  @media(max-width:640px){.main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap game">
+  <div class="nav">
+    <a href="index.html">← 조종 패널</a>
+    <div id="status" class="status off">연결 안 됨</div>
+  </div>
+
+  <h1 style="margin:0 0 2px">⚡ 수학 연료 꼬리잡기</h1>
+  <p style="color:#8ea3b5;margin:0 0 12px;font-size:.9rem">문제를 풀면 에너지가 찬다. 에너지가 있는 동안만 달릴 수 있다. 뒤를 조심!</p>
+
+  <div class="hud">
+    <div class="energywrap">
+      <div class="top"><span>에너지 <b id="energyVal">40</b></span><span>충전소에서 문제 풀기 → ⚡</span></div>
+      <div class="track"><div id="energyBar"></div></div>
+    </div>
+    <div class="caughtbox"><div class="n" id="caughtVal">0</div><div class="l">잡힘</div></div>
+  </div>
+
+  <div id="fuelWarn" class="hidden">🔋 에너지 없음! 충전소에서 문제를 풀어 충전하세요.</div>
+
+  <div class="main">
+    <div>
+      <div class="dpad">
+        <button id="d-up" class="pad up">▲</button>
+        <button id="d-left" class="pad left">◀</button>
+        <button id="d-right" class="pad right">▶</button>
+        <button id="d-down" class="pad down">▼</button>
+      </div>
+    </div>
+    <div class="side">
+      <button id="chargeBtn" class="btn charge">🔧 충전소 (문제 풀기)</button>
+      <div class="slider"><label>학년</label>
+        <select id="grade" style="width:100%;padding:10px;border-radius:8px;background:#0f1830;color:#eaf0ff;border:1px solid #26333f">
+          <option value="lo">1~2학년 (덧셈)</option>
+          <option value="mid" selected>3~4학년 (두자리·구구단)</option>
+          <option value="hi">5~6학년 (곱셈·나눗셈)</option>
+        </select>
+      </div>
+      <div class="slider"><label>속도 <b id="speedval">350</b></label><input id="speed" type="range" min="150" max="700" step="10" value="350"></div>
+      <button id="resetBtn" class="btn ghost">새 판 (점수 초기화)</button>
+    </div>
+  </div>
+
+  <details class="viewer">
+    <summary>🔧 센서 뷰어 / 튜닝 (강사용) — 후면 임계값 맞추기</summary>
+    <div class="slider" style="margin-top:10px"><label>후면 붙음 임계값 <b id="threshval">120</b> (이 값보다 작아지면 잡힘)</label>
+      <input id="thresh" type="range" min="30" max="400" step="5" value="120"></div>
+    <div>현재 후면(ir6): <b id="rearNow" style="color:#37c0a8">–</b></div>
+    <div class="sgrid">
+      <div class="s"><div class="l">전면 좌 (ir1)</div><div class="v" id="sv-ir1">–</div></div>
+      <div class="s"><div class="l">전면 중앙 (ir2)</div><div class="v" id="sv-ir2">–</div></div>
+      <div class="s"><div class="l">전면 우 (ir3)</div><div class="v" id="sv-ir3">–</div></div>
+      <div class="s"><div class="l">우측면 (ir4)</div><div class="v" id="sv-ir4">–</div></div>
+      <div class="s"><div class="l">좌측면 (ir5)</div><div class="v" id="sv-ir5">–</div></div>
+      <div class="s rear"><div class="l">후면 ★ (ir6)</div><div class="v" id="sv-ir6">–</div></div>
+      <div class="s"><div class="l">배터리</div><div class="v" id="sv-bat">–</div></div>
+    </div>
+    <div class="slider" style="margin-top:10px">
+      <input id="wsurl" type="text" value="ws://localhost:8080" style="width:100%;padding:8px;border-radius:8px;background:#0f1830;color:#eaf0ff;border:1px solid #26333f">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="c-ws" class="btn ghost small">브리지 연결</button>
+      <button id="c-mock" class="btn ghost small">데모(목)</button>
+      <button id="c-disc" class="btn danger small">해제</button>
+    </div>
+  </details>
+</div>
+
+<div id="repairModal" class="modal hidden">
+  <div class="sheet">
+    <div style="color:#8ea3b5;font-size:.85rem">⚡ 충전소 — 맞히면 +30 에너지, 계속 풀 수 있어요</div>
+    <div class="q" id="probText">?</div>
+    <input id="probInput" type="number" inputmode="numeric" placeholder="?">
+    <div class="fb" id="probFb"></div>
+    <div class="row">
+      <button id="probOk" class="btn">충전 ⚡</button>
+      <button id="probClose" class="btn ghost">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/protocol.js"></script>
+<script src="js/transport.js"></script>
+<script src="js/tag.js"></script>
+</body>
+</html>

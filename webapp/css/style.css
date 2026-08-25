@@ -53,6 +53,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .s{background:#0c141c;border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between}
 .s span{color:var(--mut);font-size:12px}.s b{font-variant-numeric:tabular-nums}
 
+.hidden{display:none}
 footer{margin-top:14px;color:var(--mut);font-size:12px;text-align:center}
 footer a{color:var(--accent)}
 @media(max-width:720px){main{grid-template-columns:1fr}.panel.drive{grid-row:auto}}
