@@ -31,7 +31,7 @@
 
   // ---- 꼬리잡기 판정 ----
   let caught = 0;
-  let rearThresh = 120;                 // ir6 < thresh → 붙음 (TOF: 가까울수록 작음)
+  let rearThresh = 50;                  // ir6 < thresh → 붙음 (TOF: 가까울수록 작음). 50↑는 너무 잘 걸림
   const RELEASE_GAP = 60;
   const MIN_INTERVAL_TICKS = 60;        // ~1.2s 재카운트 방지 (50ms*24=1.2s → 여기선 프레임 기준 보수적)
   let armed = true, cooldown = 0;
