@@ -9,6 +9,7 @@ on:
   push:
     paths:
       - "android/**"
+      - "webapp/**"          # APK가 빌드 시 webapp/를 assets로 동기화하므로
       - ".github/workflows/android.yml"
   workflow_dispatch: {}   # 수동 실행 버튼
 
