@@ -102,23 +102,63 @@ class AltinoSpp(
 
     // ---------- 내부 ----------
 
+    /**
+     * SPP 연결 폴백 체인. 알티노류 SPP 모듈은 기기/OS에 따라 되는 방식이 달라서
+     * ① 보안 RFCOMM → ② 비보안(insecure) RFCOMM → ③ 리플렉션 채널1 순으로
+     * 시도하고, 전체를 2라운드 반복한다. 그래도 안 되면 ④ 원본 앱처럼
+     * "AltinoApp" 서버 소켓을 열어 로봇 쪽에서 들어오는 연결을 잠시 기다린다.
+     */
     @SuppressLint("MissingPermission")
     private fun connectDevice(device: BluetoothDevice) {
         closeQuietly()
         Thread {
+            adapter?.cancelDiscovery()
+            var lastErr: Exception? = null
+            val makers: List<Pair<String, () -> BluetoothSocket>> = listOf(
+                "secure" to { device.createRfcommSocketToServiceRecord(SPP_UUID) },
+                "insecure" to { device.createInsecureRfcommSocketToServiceRecord(SPP_UUID) },
+                "channel1" to {
+                    device.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                        .invoke(device, 1) as BluetoothSocket
+                },
+            )
+            for (round in 1..2) {
+                for ((label, make) in makers) {
+                    try {
+                        val s = make()
+                        try { s.connect() } catch (e: Exception) {
+                            try { s.close() } catch (_: Exception) {}
+                            throw e
+                        }
+                        socket = s
+                        out = s.outputStream
+                        Log.i(TAG, "connected via $label (round $round)")
+                        status("connected")
+                        startReadLoop(s.inputStream)
+                        return@Thread
+                    } catch (e: Exception) {
+                        lastErr = e
+                        Log.w(TAG, "connect $label round$round failed: ${e.message}")
+                        try { Thread.sleep(250) } catch (_: InterruptedException) {}
+                    }
+                }
+            }
+            // ④ 원본 앱 방식: 서버 소켓을 열고 로봇의 접속을 기다림 (6초)
             try {
-                adapter?.cancelDiscovery()
-                val s = device.createRfcommSocketToServiceRecord(SPP_UUID)
-                s.connect()                     // 블로킹
+                val server = adapter!!.listenUsingRfcommWithServiceRecord("AltinoApp", SPP_UUID)
+                Log.i(TAG, "fallback: accepting as server 'AltinoApp' (6s)")
+                val s = try { server.accept(6000) } finally { try { server.close() } catch (_: Exception) {} }
                 socket = s
                 out = s.outputStream
+                Log.i(TAG, "connected via server-accept")
                 status("connected")
                 startReadLoop(s.inputStream)
+                return@Thread
             } catch (e: Exception) {
-                Log.e(TAG, "connect failed", e)
-                closeQuietly()
-                status("error:connect-failed")
+                Log.e(TAG, "all connect paths failed", lastErr ?: e)
             }
+            closeQuietly()
+            status("error:connect-failed")
         }.also { it.isDaemon = true; it.start() }
     }
 
