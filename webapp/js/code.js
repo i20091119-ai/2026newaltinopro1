@@ -22,16 +22,18 @@
   let note1 = 37, note2 = 41, repeatN = 3; // ③ 미션1 소리(도37·미41 기본, 3회)
   let zone = null;                   // ④ 미션2 배송지 문자
 
-  // 벽추종/주행 보정 (원본 실측값: tof1=90, tof2=100, tof3=90)
-  let TOF1 = 90, TOF2 = 100, TOF3 = 90;
-  let DRIVE = 350, STEER = 20;
-  const WF_BACK = -320;       // 벽추종 회피 후진(원본 -320, 0.5초 유지)
-  const HOLD_MS = 500;        // 원본: 회피/조향 동작을 0.5초 유지 후 재판단
-  const BUMP_SPEED = -350, BUMP_MS = 200; // 터널 진입 범프(원본 백속도 -350, 0.2초)
+  // 벽추종/주행 보정 — 실측 스케일: 가까울수록 작음(5cm≈60), 벽 없음≈1300.
+  // 그래서 '일찍 감지'하려면 임계를 크게(≈250) 잡아야 코앞이 아니라 여유거리에서 반응.
+  let TOF1 = 220, TOF2 = 300, TOF3 = 220;   // 전면 좌/중앙/우 감지 거리(값 미만이면 벽)
+  let DRIVE = 300, STEER = 30;              // 순항 속도 / 벽 근접 시 살짝 틀기
+  let TURN = 90;                            // 정면 벽 회피 회전(강하게 꺾기)
+  const WF_BACK = -300, HOLD_MS = 350;      // 아주 가까울 때 후진 / 동작 유지 시간
+  const NEAR2 = 130;                        // 이 값 미만이면 '코앞' → 후진하며 회피
+  const BUMP_SPEED = -350, BUMP_MS = 200;   // 터널 진입 범프
   const PHASE_TIMEOUT = 25000;
-  // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 원본 '거리=120'을 측면 목표거리로 활용
-  let SIDE_ON = true, SIDE_KP = 0.35, SIDE_TARGET = 120;
-  const SIDE_SMAX = 20, SIDE_VALID = 350; // 이 값보다 멀면 '벽 없음'으로 간주
+  // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 복도 가운데 유지
+  let SIDE_ON = true, SIDE_KP = 0.12, SIDE_TARGET = 250;
+  const SIDE_SMAX = 35, SIDE_VALID = 700;   // 이 값보다 멀면 '벽 없음'으로 간주
 
   // ② 복구코드 문제 — 초4·초5·초6·중1·중2·중3·고1 각 20문항(정수 정답).
   // 각 학년 1학기 교육과정 범위, 난이도는 가장 쉬운 수준으로만. (독립 검산기 0오류 통과)
@@ -157,6 +159,9 @@
     if ($('cdsNow')) $('cdsNow').textContent = s.cds;
     if ($('tofNow')) $('tofNow').textContent = `${s.ir1}/${s.ir2}/${s.ir3}`;
     if ($('sideNow')) $('sideNow').textContent = `${s.ir5}·${s.ir4}`;
+    if ($('hudTof')) $('hudTof').textContent = `${s.ir1}/${s.ir2}/${s.ir3}`;
+    if ($('hudSide')) $('hudSide').textContent = `${s.ir5}·${s.ir4}`;
+    if ($('hudCds')) $('hudCds').textContent = s.cds;
     const c = $('battChip');
     if (c && s.battery > 0) { c.style.display = ''; c.textContent = '🔋 ' + s.battery; const low = s.battery < BATT_LOW; c.classList.toggle('err', low); if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체'); } if (!low) battWarned = false; }
   }
@@ -298,25 +303,31 @@
     $('sumLetter').textContent = zone ? zone.code : '--';
   }
 
-  // ---- 주행: TOF 벽추종(오른쪽_자율주행) — 원본과 동일하게 동작을 0.5초 '유지' 후 재판단 ----
+  // ---- 주행: TOF 벽추종 (실측 스케일: 작을수록 가까움) ----
+  // 조향 부호: +STEER=우회전, -STEER=좌회전.
+  function hudAct(t) { const e = $('hudAct'); if (e) e.textContent = t; }
   async function wallFollowStep() {
-    if (sensor.ir2 < TOF2) {              // 앞(TOF-2) 막힘 → 조향 틀고 후진(-320) 0.5초
-      setDrive(WF_BACK, sensor.ir1 < TOF1 ? -STEER : STEER); await sleep(HOLD_MS);
-    } else if (sensor.ir1 < TOF1) {       // 좌 벽 가까움 → 오른쪽-20 전진 0.5초
-      setDrive(DRIVE, STEER); await sleep(HOLD_MS);
-    } else if (sensor.ir3 < TOF3) {       // 우 벽 가까움 → 왼쪽-20 전진 0.5초
-      setDrive(DRIVE, -STEER); await sleep(HOLD_MS);
-    } else if (SIDE_ON && (sensor.ir4 < SIDE_VALID || sensor.ir5 < SIDE_VALID)) {
-      // 측면 정밀 보정: 양쪽 벽 = 가운데 맞추기 / 한쪽 벽 = 목표거리 유지 (50ms 연속 미세조정)
-      const R = sensor.ir4, L = sensor.ir5;
-      let st;
-      if (R < SIDE_VALID && L < SIDE_VALID) st = SIDE_KP * (R - L);        // 좌벽에 가까우면 +(우로)
-      else if (R < SIDE_VALID)              st = SIDE_KP * (R - SIDE_TARGET); // 우벽 추종
-      else                                  st = -SIDE_KP * (L - SIDE_TARGET); // 좌벽 추종
+    const { ir1, ir2, ir3, ir4, ir5 } = sensor;
+    if (ir2 < TOF2) {                     // ① 정면 벽 → 더 '열린'(값이 큰) 쪽으로 강하게 회전
+      const turn = (ir1 >= ir3) ? -TURN : TURN;  // 왼쪽이 더 열리면 좌회전(음수)
+      if (ir2 < NEAR2) { setDrive(WF_BACK, turn); hudAct(turn < 0 ? '⛔ 후진+좌회전' : '⛔ 후진+우회전'); }
+      else { setDrive(Math.round(DRIVE * 0.55), turn); hudAct(turn < 0 ? '↰ 정면벽 좌회전' : '↱ 정면벽 우회전'); }
+      await sleep(HOLD_MS);
+    } else if (ir1 < TOF1) {              // ② 좌 벽 근접 → 오른쪽으로 살짝
+      setDrive(DRIVE, STEER); hudAct('↳ 좌벽→우로'); await sleep(HOLD_MS);
+    } else if (ir3 < TOF3) {              // ③ 우 벽 근접 → 왼쪽으로 살짝
+      setDrive(DRIVE, -STEER); hudAct('↲ 우벽→좌로'); await sleep(HOLD_MS);
+    } else if (SIDE_ON && (ir4 < SIDE_VALID || ir5 < SIDE_VALID)) {
+      // ④ 측면 정밀 보정: 양쪽=가운데 / 한쪽=목표거리 유지 (50ms 연속 미세조정)
+      const R = ir4, L = ir5; let st;   // +st=우회전, -st=좌회전
+      if (R < SIDE_VALID && L < SIDE_VALID) st = SIDE_KP * (R - L);          // 우가 가까우면(R작음) 좌로
+      else if (R < SIDE_VALID)              st = SIDE_KP * (R - SIDE_TARGET); // 우벽: 가까우면(R<목표) 좌로
+      else                                  st = -SIDE_KP * (L - SIDE_TARGET); // 좌벽: 가까우면(L<목표) 우로
       st = Math.max(-SIDE_SMAX, Math.min(SIDE_SMAX, Math.round(st)));
-      setDrive(DRIVE, st); await sleep(STREAM_MS);
-    } else {                              // 뚫림 → 직진(즉시 재판단)
-      setDrive(DRIVE, 0); await sleep(STREAM_MS);
+      setDrive(DRIVE, st); hudAct(st === 0 ? '↑ 가운데 직진' : (st > 0 ? '↗ 가운데보정 우' : '↖ 가운데보정 좌'));
+      await sleep(STREAM_MS);
+    } else {                              // ⑤ 뚫림 → 직진(즉시 재판단)
+      setDrive(DRIVE, 0); hudAct('⬆ 직진'); await sleep(STREAM_MS);
     }
   }
   async function driveUntil(cond) {
@@ -394,6 +405,7 @@
     // 보정
     const bind = (id, set, span) => { const el = $(id); el.addEventListener('input', () => { set(+el.value); if ($(span)) $(span).textContent = el.value; }); if ($(span)) $(span).textContent = el.value; };
     bind('calTof1', v => TOF1 = v, 'calTof1V'); bind('calTof2', v => TOF2 = v, 'calTof2V'); bind('calTof3', v => TOF3 = v, 'calTof3V');
+    bind('calTurn', v => TURN = v, 'calTurnV');
     bind('calDrive', v => DRIVE = v, 'calDriveV'); bind('calSteer', v => STEER = v, 'calSteerV');
     // 측면 정밀주행
     const sideChk = $('sideOn');

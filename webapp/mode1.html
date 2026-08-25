@@ -183,16 +183,23 @@
       <p class="lead">출발하면 <b>자동으로 벽을 따라</b> 달리다가, 터널(어두움)에서 소리 미션 🎵, 도착하면 문자를 표시하고 멈춰요.</p>
       <button id="goRun" class="btn mint big">🚚 배송 출발!</button>
       <button id="stopRun" class="btn coral big hidden">■ 정지</button>
+      <div id="driveHud" style="margin-top:10px;background:#0e1a14;color:#eafff6;border-radius:14px;padding:10px 14px;font-size:1.05rem;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <span>🚦 <b id="hudAct">대기</b></span>
+        <span style="color:#9fd;">앞 TOF <b id="hudTof">–/–/–</b></span>
+        <span style="color:#9fd;">옆(좌·우) <b id="hudSide">–·–</b></span>
+        <span style="color:#ffd;">🔆 <b id="hudCds">–</b></span>
+      </div>
       <details class="cal">
-        <summary>🔧 벽추종 보정 (강사용) · 앞센서 TOF-1/2/3 값은 상단 참고</summary>
-        <label>TOF-1(좌) 임계 <b id="calTof1V">90</b></label><input id="calTof1" type="range" min="30" max="400" step="5" value="90">
-        <label>TOF-2(정면) 임계 <b id="calTof2V">100</b></label><input id="calTof2" type="range" min="30" max="700" step="5" value="100">
-        <label>TOF-3(우) 임계 <b id="calTof3V">90</b></label><input id="calTof3" type="range" min="30" max="400" step="5" value="90">
-        <label>직진 속도 <b id="calDriveV">350</b></label><input id="calDrive" type="range" min="150" max="700" step="10" value="350">
-        <label>조향 세기 <b id="calSteerV">20</b></label><input id="calSteer" type="range" min="5" max="127" step="1" value="20">
+        <summary>🔧 벽추종 보정 (강사용) · 값 클수록 '멀리서 미리' 반응 (벽 없음≈1300)</summary>
+        <label>TOF-1(좌) 감지거리 <b id="calTof1V">220</b></label><input id="calTof1" type="range" min="60" max="700" step="10" value="220">
+        <label>TOF-2(정면) 감지거리 <b id="calTof2V">300</b></label><input id="calTof2" type="range" min="80" max="900" step="10" value="300">
+        <label>TOF-3(우) 감지거리 <b id="calTof3V">220</b></label><input id="calTof3" type="range" min="60" max="700" step="10" value="220">
+        <label>정면 회피 회전세기 <b id="calTurnV">90</b></label><input id="calTurn" type="range" min="30" max="127" step="1" value="90">
+        <label>직진 속도 <b id="calDriveV">300</b></label><input id="calDrive" type="range" min="150" max="700" step="10" value="300">
+        <label>측면 살짝틀기 세기 <b id="calSteerV">30</b></label><input id="calSteer" type="range" min="5" max="90" step="1" value="30">
         <label style="margin-top:10px"><input id="sideOn" type="checkbox" checked style="accent-color:var(--mint);width:18px;height:18px;vertical-align:-3px"> <b>측면 센서(ir5좌·ir4우) 정밀주행</b> — 복도 가운데 자동 유지</label>
-        <label>측면 게인 ×0.01 <b id="calSideKpV">35</b></label><input id="calSideKp" type="range" min="10" max="100" step="5" value="35">
-        <label>측면 목표거리 <b id="calSideTargetV">120</b></label><input id="calSideTarget" type="range" min="60" max="250" step="10" value="120">
+        <label>측면 게인 ×0.01 <b id="calSideKpV">12</b></label><input id="calSideKp" type="range" min="4" max="60" step="2" value="12">
+        <label>측면 목표거리 <b id="calSideTargetV">250</b></label><input id="calSideTarget" type="range" min="100" max="600" step="10" value="250">
       </details>
       <div class="foot"><button class="btn ghost" data-back="5">← 이전</button><span></span></div>
     </section>
