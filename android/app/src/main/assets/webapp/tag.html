@@ -245,13 +245,17 @@
       <b style="font-size:1.3rem">🔗 알티노 연결</b>
       <button id="connClose" class="btn ghost" style="padding:8px 14px">닫기</button>
     </div>
-    <p class="cap" id="connHint" style="margin:10px 0">페어링된 알티노를 골라 연결하세요.</p>
-    <div id="devList" style="display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto"></div>
+    <p class="cap" id="connHint" style="margin:10px 0">차 바닥 스티커 번호(예: <b>BD77</b>)로 찾아 연결하세요.</p>
+    <input id="devSearch" type="text" placeholder="🔎 번호로 검색 (예: BD77)" autocomplete="off"
+           style="width:100%;padding:12px;border-radius:12px;border:2px solid var(--line);font-family:inherit;font-size:1.05rem;margin-bottom:10px">
+    <div id="devList" style="display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto"></div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button id="connSettings" class="btn" style="background:#5ea0ff">📶 블루투스 설정 열기</button>
       <button id="connRefresh" class="btn ghost">🔄 새로고침</button>
       <button id="connMock" class="btn ghost">데모(목)</button>
       <button id="connDisc" class="btn ghost">연결 해제</button>
     </div>
+    <p class="cap" style="margin-top:10px;font-size:.85rem">처음이면 [블루투스 설정 열기]에서 스티커 번호와 같은 알티노를 <b>페어링</b>한 뒤, 뒤로 돌아와 [새로고침]을 누르세요.</p>
   </div>
 </div>
 

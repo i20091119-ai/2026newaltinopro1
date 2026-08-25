@@ -22,7 +22,10 @@ import java.util.UUID
  *
  * 통신 규격은 docs/PROTOCOL.md — 클래식 RFCOMM/SPP, 26바이트 송신 / 54바이트 수신.
  */
-class AltinoSpp(private val postToJs: (String) -> Unit) {
+class AltinoSpp(
+    private val postToJs: (String) -> Unit,
+    private val onOpenSettings: () -> Unit = {},
+) {
 
     companion object {
         private const val TAG = "AltinoSpp"
@@ -92,6 +95,10 @@ class AltinoSpp(private val postToJs: (String) -> Unit) {
 
     @JavascriptInterface
     fun disconnect() { closeQuietly(); status("disconnected") }
+
+    /** 안드로이드 [설정 → 블루투스] 화면 열기 (페어링하러 다녀오기) */
+    @JavascriptInterface
+    fun openBluetoothSettings() { try { onOpenSettings() } catch (e: Exception) {} }
 
     // ---------- 내부 ----------
 

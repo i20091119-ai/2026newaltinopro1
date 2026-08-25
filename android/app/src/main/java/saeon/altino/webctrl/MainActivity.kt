@@ -2,8 +2,10 @@ package saeon.altino.webctrl
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import android.os.Bundle
 import android.view.WindowManager
 import android.webkit.WebView
@@ -39,7 +41,10 @@ class MainActivity : AppCompatActivity() {
         web.webViewClient = WebViewClient()
 
         // 읽기 스레드 -> UI 스레드에서 JS 실행
-        spp = AltinoSpp { js -> web.post { web.evaluateJavascript(js, null) } }
+        spp = AltinoSpp(
+            { js -> web.post { web.evaluateJavascript(js, null) } },
+            { try { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) } catch (e: Exception) {} },
+        )
         web.addJavascriptInterface(spp, "AltinoNative")
 
         requestBtPermsIfNeeded()

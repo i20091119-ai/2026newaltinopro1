@@ -1,0 +1,40 @@
+name: Deploy webapp to GitHub Pages
+
+# webapp/ 을 GitHub Pages로 배포 → 어느 기기서나 브라우저로 열어 UI 테스트.
+# (실제 알티노 블루투스 제어는 APK에서만; Pages는 데모(목)로 화면·흐름 확인용)
+
+on:
+  push:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload webapp as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: webapp
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

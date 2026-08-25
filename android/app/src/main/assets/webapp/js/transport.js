@@ -115,6 +115,10 @@ class AndroidBridgeTransport extends BaseTransport {
   listDevices() {
     try { return JSON.parse(window.AltinoNative.listDevices() || '[]'); } catch (e) { return []; }
   }
+  // 안드로이드 [설정 → 블루투스] 열기 (페어링하러 다녀오기)
+  openSettings() {
+    try { if (window.AltinoNative && window.AltinoNative.openBluetoothSettings) window.AltinoNative.openBluetoothSettings(); } catch (e) {}
+  }
   async connect() { // 이름에 altino/neo 있는 기기 자동 선택(단일 기기용)
     if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입(래퍼 앱 아님)');
     this._attach();
