@@ -24,15 +24,16 @@
 
   // 벽추종/주행 보정 — 실측 스케일: 가까울수록 작음(5cm≈60), 벽 없음≈1300.
   // 그래서 '일찍 감지'하려면 임계를 크게(≈250) 잡아야 코앞이 아니라 여유거리에서 반응.
-  let TOF1 = 220, TOF2 = 300, TOF3 = 220;   // 전면 좌/중앙/우 감지 거리(값 미만이면 벽)
+  // 기본값 = 실기(경남수학문화관 n자 코스)에서 검증된 값. 설정에서 바꾸면 자동 저장됨.
+  let TOF1 = 130, TOF2 = 100, TOF3 = 130;   // 전면 좌/중앙/우 감지 거리(값 미만이면 벽)
   let DRIVE = 300, STEER = 30;              // 순항 속도 / 벽 근접 시 살짝 틀기
-  let TURN = 90;                            // 정면 벽 회피 회전(강하게 꺾기)
+  let TURN = 127;                           // 정면 벽 회피 회전(강하게 꺾기)
   const WF_BACK = -300, HOLD_MS = 350;      // 아주 가까울 때 후진 / 동작 유지 시간
   const NEAR2 = 130;                        // 이 값 미만이면 '코앞' → 후진하며 회피
   const BUMP_SPEED = -350, BUMP_MS = 200;   // 터널 진입 범프
   const PHASE_TIMEOUT = 25000;
   // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 복도 가운데 유지
-  let SIDE_ON = true, SIDE_KP = 0.12, SIDE_TARGET = 250;
+  let SIDE_ON = true, SIDE_KP = 0.12, SIDE_TARGET = 100;
   const SIDE_SMAX = 35, SIDE_VALID = 700;   // 이 값보다 멀면 '벽 없음'으로 간주
 
   // ② 복구코드 문제 — 초4·초5·초6·중1·중2·중3·고1 각 20문항(정수 정답).
@@ -481,6 +482,25 @@
     if (sideChk) sideChk.addEventListener('change', () => { SIDE_ON = sideChk.checked; toast(SIDE_ON ? '측면 정밀주행 ON' : '측면 정밀주행 OFF'); });
     bind('calSideKp', v => SIDE_KP = v / 100, 'calSideKpV');
     bind('calSideTarget', v => SIDE_TARGET = v, 'calSideTargetV');
+    // 보정값 자동 저장/복원 (앱 재시작·재접속해도 유지) — 부스 운영 필수
+    const CAL_IDS = ['calTof1', 'calTof2', 'calTof3', 'calTurn', 'calDrive', 'calSteer', 'calSideKp', 'calSideTarget'];
+    function saveCal() {
+      try {
+        const o = {}; CAL_IDS.forEach(id => { const el = $(id); if (el) o[id] = el.value; });
+        const sc = $('sideOn'); if (sc) o.sideOn = sc.checked;
+        localStorage.setItem('altinoCalV1', JSON.stringify(o));
+      } catch (e) {}
+    }
+    function restoreCal() {
+      try {
+        const o = JSON.parse(localStorage.getItem('altinoCalV1') || 'null'); if (!o) return;
+        CAL_IDS.forEach(id => { const el = $(id); if (el && o[id] != null) { el.value = o[id]; el.dispatchEvent(new Event('input')); } });
+        const sc = $('sideOn'); if (sc && o.sideOn != null) { sc.checked = o.sideOn; SIDE_ON = o.sideOn; }
+      } catch (e) {}
+    }
+    CAL_IDS.forEach(id => { const el = $(id); if (el) el.addEventListener('input', saveCal); });
+    if (sideChk) sideChk.addEventListener('change', saveCal);
+    restoreCal();
     // 연결
     $('connBtn').onclick = () => { if (T.AndroidBridgeTransport.supported) pickAndConnect(); else connect('mock'); };
     $('btSettings').onclick = () => { if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings(); else toast('실기(APK)에서만 열려요'); };
