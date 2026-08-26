@@ -130,12 +130,18 @@ class AndroidBridgeTransport extends BaseTransport {
   openSettings() {
     try { if (window.AltinoNative && window.AltinoNative.openBluetoothSettings) window.AltinoNative.openBluetoothSettings(); } catch (e) {}
   }
-  async connect() { // 이름에 altino/neo 있는 기기 자동 선택(단일 기기용)
+  async connect() { // 바인딩된(이전에 고른) 로봇에만 연결. 없으면 error:no-bound.
     if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입(래퍼 앱 아님)');
     this._attach();
     if (typeof window.AltinoNative.connect === 'function') window.AltinoNative.connect();
     // 실제 연결 확정은 네이티브의 __altinoOnStatus('connected') 콜백에서
   }
+  // 네이티브 연결 상태 조회(페이지 이동해도 네이티브 GATT는 살아있음)
+  state() { try { return JSON.parse(window.AltinoNative.getState() || '{}'); } catch (e) { return {}; } }
+  // 이미 연결된 네이티브 링크를 '입양'(재연결 없이 콜백만 재바인딩)
+  adopt() { this._attach(); this.connected = true; this._emit('status', 'connected'); }
+  // 바인딩 해제('다른 로봇 선택')
+  unbind() { try { if (window.AltinoNative.unbind) window.AltinoNative.unbind(); } catch (e) {} this.connected = false; }
   async connectTo(address) { // 특정 MAC으로 연결(다중 기기 선택)
     if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입');
     this._attach();

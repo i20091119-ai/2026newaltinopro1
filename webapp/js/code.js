@@ -12,7 +12,7 @@
   const state = new P.AltinoState();
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null, running = false;
-  const STREAM_MS = 50;
+  const STREAM_MS = 100;   // 20Hz→10Hz: 12대 동시운영 시 BT 트래픽 절반(안정성↑)
   const sensor = { ir1: 999, ir2: 999, ir3: 999, ir4: 999, ir5: 999, ir6: 999, cds: 999, battery: 0 };
 
   // 학생 입력(코딩 빈칸)
@@ -466,15 +466,33 @@
   function setRunUI(on) { $('goRun').classList.toggle('hidden', on); const l = $('loopRun'); if (l) l.classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
 
   // ---- 연결 ----
+  function connErr(s) {
+    const m = { 'error:no-bound': '로봇을 먼저 선택', 'error:bad-address': '잘못된 주소', 'error:give-up': '연결 실패 — 다시 선택', 'error:no-uart-char': 'UART 특성 없음', 'error:notify-failed': '알림 설정 실패', 'error:busy': '연결 중(스캔 불가)', 'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜세요', 'error:scan-failed': '스캔 실패' };
+    return m[s] || s.replace('error:', '');
+  }
+  function wireNative(t) {   // 상태/데이터 핸들러 (상태는 'base:detail' 형식 → base로 판별)
+    t.on('status', s => {
+      const b = String(s).split(':')[0];
+      if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
+      else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
+      else if (b === 'disconnected') setStatus('🔗 연결 끊김', 'off');
+      else setStatus('⚠ ' + connErr(s), 'err');
+    });
+    t.on('data', bytes => { for (const f of assembler.push(bytes)) onSensor(f); });
+  }
   async function connect(kind, addr) {
     await disconnect();
     try {
-      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); setStatus('🔗 연결 중…', 'pending'); if (addr) await transport.connectTo(addr); else await transport.connect(); }
-      else { transport = new T.MockTransport(); await transport.connect({}); }
-      transport.on('status', s => { if (s === 'connected') setStatus('🔗 연결됨 ✓', 'ok'); else if (s === 'disconnected') setStatus('🔗 연결 끊김', 'off'); else setStatus('⚠ ' + s.replace('error:', ''), 'err'); });
-      transport.on('data', bytes => { for (const f of assembler.push(bytes)) onSensor(f); });
-      if (kind !== 'native') setStatus('🔗 연결됨 ✓ (데모)', 'ok');
+      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); wireNative(transport); setStatus('🔗 연결 중…', 'pending'); if (addr) await transport.connectTo(addr); else await transport.connect(); }
+      else { transport = new T.MockTransport(); transport.on('data', bytes => { for (const f of assembler.push(bytes)) onSensor(f); }); await transport.connect({}); setStatus('🔗 연결됨 ✓ (데모)', 'ok'); }
     } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; }
+  }
+  function adoptNative() { transport = new T.AndroidBridgeTransport(); wireNative(transport); transport.adopt(); } // 살아있는 네이티브 링크 이어받기
+  function nativeStart() {   // 페이지 진입: 연결됨→입양 / 바인딩됨→그 로봇만 / 없음→스캔 선택
+    const st = new T.AndroidBridgeTransport().state();
+    if (st.connected) adoptNative();
+    else if (st.address) connect('native', st.address);
+    else pickAndConnect();
   }
   async function disconnect() { stopRun(); stopScanning(); if (transport) { try { await transport.disconnect(); } catch (e) {} } transport = null; }
 
@@ -492,13 +510,14 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <h2 style="margin:0">🔗 알티노 연결 <span style="font-size:.9rem;color:var(--mut)">(페어링 필요 없어요)</span></h2>
           <button id="scanClose" class="btn ghost" style="padding:6px 12px">닫기</button></div>
-        <p class="lead" style="margin:0 0 8px">차 바닥 스티커 번호(예: <b>BD77</b>)를 찾아 탭하세요.</p>
-        <input id="scanSearch" type="text" placeholder="번호로 검색 (예: BD77)" style="width:100%;margin-bottom:8px">
+        <p class="lead" style="margin:0 0 8px">차 몸체 스티커의 <b>⟨뒤 4자리⟩</b>를 찾아 탭하세요. 한 번 고르면 <b>그 차에만</b> 연결/재연결돼요(다른 차에 안 붙음).</p>
+        <input id="scanSearch" type="text" placeholder="뒤 4자리로 검색 (예: 3FA2)" style="width:100%;margin-bottom:8px">
         <div id="scanList"><p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p></div>
-        <div style="margin-top:10px;display:flex;gap:8px"><button id="scanSettings" class="btn ghost">📶 블루투스 설정</button></div></div>`;
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="scanSettings" class="btn ghost">📶 블루투스 설정</button><button id="scanUnbind" class="btn ghost">🔓 이 태블릿 짝 해제</button></div></div>`;
       document.body.appendChild(ov);
       ov.querySelector('#scanClose').onclick = () => { stopScanning(); ov.classList.add('hidden'); };
       ov.querySelector('#scanSettings').onclick = () => { try { new T.AndroidBridgeTransport().openSettings(); } catch (e) {} };
+      ov.querySelector('#scanUnbind').onclick = () => { try { new T.AndroidBridgeTransport().unbind(); } catch (e) {} toast('짝 해제됨 — 새 로봇을 고르세요'); renderScan(); };
       ov.querySelector('#scanSearch').addEventListener('input', renderScan);
     }
     ov.classList.remove('hidden');
@@ -514,14 +533,19 @@
     const devs = scanDevs.filter(d => !q || (d.name || '').toLowerCase().includes(q) || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
     if (!devs.length) { list.innerHTML = '<p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
     devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
+    const bound = (new T.AndroidBridgeTransport().state().address || '');
     list.innerHTML = '';
-    devs.forEach(d => {
+    devs.forEach((d, i) => {
       const b = document.createElement('button'); b.className = 'btn ghost'; b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px';
-      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b><br><span style="font-size:.85rem;color:var(--mut)">${d.address}</span>`;
+      const tag4 = mac4(d.address);
+      const near = i === 0 && d.rssi ? ' <span style="color:var(--mint);font-size:.8rem">· 가장 가까움</span>' : '';
+      const isBound = d.address === bound ? ' <span style="color:var(--sun);font-size:.8rem">· 이전 선택</span>' : '';
+      b.innerHTML = `🚗 <b style="font-size:1.35rem">⟨${tag4}⟩</b> <span style="font-size:1rem">${d.name || '(이름없음)'}</span>${near}${isBound}<br><span style="font-size:.8rem;color:var(--mut)">${d.address}</span>`;
       b.onclick = () => { stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address); };
       list.appendChild(b);
     });
   }
+  function mac4(addr) { const h = String(addr || '').replace(/:/g, ''); return h.slice(-4).toUpperCase(); } // 로봇 몸체 스티커와 대조할 뒤 4자리
 
   // ---- 🔬 센서 점검 오버레이 (측면센서 작동 확인용) ----
   // 각 센서 앞에 손을 대보며 숫자가 변하는지 확인 → '반응함' 뱃지. 측면(ir4/ir5)이 안 변하면 그 로봇은 측면센서 문제.
@@ -638,7 +662,7 @@
     document.addEventListener('visibilitychange', () => { if (document.hidden) stopRun(); });
 
     startStream(); setRunUI(false); go(1);
-    if (T.AndroidBridgeTransport.supported) connect('native'); else setStatus('🔗 연결 안 됨 (데모 가능)', 'off');
+    if (T.AndroidBridgeTransport.supported) nativeStart(); else setStatus('🔗 연결 안 됨 (데모 가능)', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);
 })();

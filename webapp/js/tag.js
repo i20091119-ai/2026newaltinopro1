@@ -10,9 +10,7 @@
   const state = new P.AltinoState();
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null;
-  const STREAM_MS = 50;                 // 20 tick/s
-  // BT 자동 재연결
-  let lastNative = null, manualDisconnect = false, reconnectTimer = null;
+  const STREAM_MS = 100;                // 10 tick/s (12대 동시 BT 트래픽 절감). 재연결은 네이티브가 담당
 
   // ---- 에너지 경제 (모두 현장 조절용 상수) ----
   const SECONDS_PER_SOLVE = 30;        // 문제 1개로 달릴 수 있는 시간(초)
@@ -236,37 +234,26 @@
   function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1200); }
 
   // ---- 연결 ----
+  function wireNative(t) {   // 상태는 'base:detail' → base로 판별. 재연결은 네이티브가 자동 수행
+    t.on('status', (s) => {
+      const b = String(s).split(':')[0];
+      if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
+      else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
+      else if (b === 'disconnected') setStatus('🔗 연결 끊김', 'off');
+      else setStatus('⚠ ' + connErr(s), 'err');
+    });
+    t.on('data', (bytes) => { for (const f of assembler.push(bytes)) onSensor(f); });
+  }
   async function connect(kind, addr) {
     await disconnect();
-    manualDisconnect = false;
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     try {
-      if (kind === 'native') {
-        transport = new T.AndroidBridgeTransport();
-        lastNative = addr || 'auto';
-        setStatus('🔗 연결 중…', 'pending');
-        if (addr) await transport.connectTo(addr); else await transport.connect();
-      }
-      else if (kind === 'ws') { lastNative = null; transport = new T.WebSocketTransport(); await transport.connect({ url: $('wsurl').value.trim() }); }
-      else { lastNative = null; transport = new T.MockTransport(); await transport.connect({}); }
-      transport.on('status', (s) => {
-        if (s === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
-        else if (s === 'disconnected') { setStatus('🔗 연결 끊김', 'off'); maybeReconnect(); }
-        else { setStatus('⚠ ' + connErr(s), 'err'); maybeReconnect(); }
-      });
-      transport.on('data', (bytes) => { for (const f of assembler.push(bytes)) onSensor(f); });
-      if (kind !== 'native') setStatus('🔗 연결됨 ✓', 'ok'); // native는 __altinoOnStatus 콜백에서 확정
-    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; maybeReconnect(); }
+      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); wireNative(transport); setStatus('🔗 연결 중…', 'pending'); if (addr) await transport.connectTo(addr); else await transport.connect(); }
+      else if (kind === 'ws') { transport = new T.WebSocketTransport(); wireNative(transport); await transport.connect({ url: $('wsurl').value.trim() }); setStatus('🔗 연결됨 ✓', 'ok'); }
+      else { transport = new T.MockTransport(); wireNative(transport); await transport.connect({}); setStatus('🔗 연결됨 ✓', 'ok'); }
+    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; }
   }
-  // 끊기면 마지막 알티노로 자동 재연결(수동 해제 시엔 안 함)
-  function maybeReconnect() {
-    if (manualDisconnect || !lastNative || reconnectTimer) return;
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null;
-      setStatus('🔗 재연결 중…', 'pending');
-      connect('native', lastNative === 'auto' ? undefined : lastNative);
-    }, 3000);
-  }
+  function adoptNative() { transport = new T.AndroidBridgeTransport(); wireNative(transport); transport.adopt(); }   // 살아있는 링크 이어받기(페이지 이동 유지)
+  function nativeStart() { const st = new T.AndroidBridgeTransport().state(); if (st.connected) adoptNative(); else if (st.address) connect('native', st.address); else openConn(); }
 
   // 네이티브 오류 코드 → 사용자 안내
   function connErr(s) {
@@ -305,20 +292,24 @@
       || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
     if (!devs.length) { list.innerHTML = '<p class="cap">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
     devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
-    devs.forEach(d => {
+    const bound = (new T.AndroidBridgeTransport().state().address || '');
+    devs.forEach((d, i) => {
       const b = document.createElement('button');
       b.className = 'btn ghost'; b.style.textAlign = 'left';
       const bars = d.rssi ? (d.rssi > -60 ? '📶' : d.rssi > -80 ? '📶' : '·') : '';
-      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b> ${bars}<br><span style="font-size:.85rem;color:#9b8f86">${d.address}</span>`;
+      const near = i === 0 && d.rssi ? ' <span style="color:#37c9ad;font-size:.8rem">· 가장 가까움</span>' : '';
+      const isBound = d.address === bound ? ' <span style="color:#ffb23e;font-size:.8rem">· 이전 선택</span>' : '';
+      b.innerHTML = `🚗 <b style="font-size:1.35rem">⟨${mac4(d.address)}⟩</b> <span style="font-size:.95rem">${d.name || '(이름없음)'}</span> ${bars}${near}${isBound}<br><span style="font-size:.8rem;color:#9b8f86">${d.address}</span>`;
       b.onclick = () => { stopScanning(); connect('native', d.address); closeConn(); };
       list.appendChild(b);
     });
   }
+  function mac4(addr) { const h = String(addr || '').replace(/:/g, ''); return h.slice(-4).toUpperCase(); }
   function openConn() {
     const hint = $('connHint');
     allDevs = [];
     if (T.AndroidBridgeTransport.supported) {
-      hint.innerHTML = '차 바닥 스티커 번호(예: <b>BD77</b>)로 찾아 탭하세요. <b>페어링 필요 없어요!</b>';
+      hint.innerHTML = '차 몸체 <b>⟨뒤 4자리⟩</b>로 찾아 탭하세요. 한 번 고르면 <b>그 차에만</b> 연결돼요. <b>페어링 필요 없어요!</b>';
       startScanning();
     } else {
       hint.textContent = '브라우저에서는 실제 블루투스가 안 돼요. 데모(목)로 UI를 테스트하세요.';
@@ -328,8 +319,6 @@
   }
   function closeConn() { stopScanning(); $('connModal').classList.add('hidden'); }
   async function disconnect() {
-    manualDisconnect = true;
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     state.stopAll();
     if (transport) { try { await transport.send(P.buildFrame(state)); } catch (e) {} try { await transport.disconnect(); } catch (e) {} }
     transport = null; setStatus('🔗 연결 안 됨', 'off');
@@ -395,7 +384,7 @@
     updateEnergyUI();
     startStream();                       // 게임 루프는 항상 가동(연결 전에도 UI 동작), 전송은 연결 시에만
     if (T.AndroidBridgeTransport.supported) {
-      setStatus('🔗 연결 안 됨', 'off'); openConn();   // 무페어링 스캔 목록에서 스티커 번호로 선택
+      setStatus('🔗 연결 안 됨', 'off'); nativeStart();   // 연결됨→입양 / 바인딩됨→그 로봇 / 없음→스캔 선택
     } else setStatus('🔗 연결 안 됨', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);

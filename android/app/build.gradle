@@ -9,10 +9,10 @@ android {
 
     defaultConfig {
         applicationId "saeon.altino.webctrl"
-        minSdk 21
-        // 원본 앱과 동일하게 targetSdk 30 → 안드로이드 12+에서도 레거시
-        // BLUETOOTH 권한이 설치 시 부여되어 런타임 권한 절차가 단순해진다.
-        targetSdk 30
+        minSdk 23
+        // targetSdk 34: 안드로이드 12+ 에서 neverForLocation 이 실제 적용되어
+        // 위치 권한 없이 BLE 스캔이 정상 동작(부스 태블릿 스캔 0건 문제 해결).
+        targetSdk 34
         versionCode 1
         versionName "1.0"
     }

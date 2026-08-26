@@ -9,7 +9,7 @@
   const assembler = new P.SensorFrameAssembler();
   let transport = null;
   let streamTimer = null;
-  const STREAM_MS = 50;
+  const STREAM_MS = 100;
   let speed = 300;          // 기본 속도 (앱 기본값과 동일)
 
   const $ = (id) => document.getElementById(id);
@@ -49,9 +49,11 @@
         await transport.connect({});
       }
       transport.on('status', (s) => {
-        if (s === 'connected') setStatus('연결됨 ✓', 'ok');
-        else if (s === 'disconnected') setStatus('연결 끊김', 'off');
-        else setStatus('오류: ' + s, 'err');
+        const b = String(s).split(':')[0];
+        if (b === 'connected') setStatus('연결됨 ✓', 'ok');
+        else if (b === 'reconnecting') setStatus('재연결 중…', 'pending');
+        else if (b === 'disconnected') setStatus('연결 끊김', 'off');
+        else setStatus('오류: ' + s.replace('error:', ''), 'err');
       });
       transport.on('data', (bytes) => {
         const frames = assembler.push(bytes);
@@ -149,8 +151,13 @@
     $('c-mock').addEventListener('click', () => connect('mock'));
     $('c-disc').addEventListener('click', () => disconnect());
     if (!T.WebSerialTransport.supported) { $('c-serial').disabled = true; $('c-serial').title = '이 브라우저 미지원'; }
-    // WebView 래퍼 앱 안이면 네이티브 브리지를 기본으로 사용
-    if (T.AndroidBridgeTransport.supported) { $('wsurl').value = '(WebView 네이티브 브리지)'; connect('native'); }
+    // WebView 래퍼 앱: 살아있는 연결이면 이어받기, 바인딩된 로봇이 있으면 그 로봇만(자동 임의연결 안 함)
+    if (T.AndroidBridgeTransport.supported) {
+      $('wsurl').value = '(WebView 네이티브 브리지)';
+      const st = new T.AndroidBridgeTransport().state();
+      if (st.connected || st.address) connect('native');
+      else setStatus('로봇 미선택 — 코딩/술래잡기 화면에서 로봇을 먼저 고르세요', 'off');
+    }
 
     // 안전: 화면 이탈/숨김 시 정지
     window.addEventListener('blur', () => state.stopAll());
