@@ -33,7 +33,7 @@
   const PHASE_TIMEOUT = 25000;
   // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 복도 가운데 유지
   let SIDE_ON = true, SIDE_KP = 0.12, SIDE_TARGET = 100;
-  const SIDE_SMAX = 35, SIDE_VALID = 700;   // 이 값보다 멀면 '벽 없음'으로 간주
+  const SIDE_SMAX = 50, SIDE_VALID = 900;   // 조향 상한↑(더 세게 보정)·측면 벽 더 일찍 감지
 
   // ② 복구코드 문제 — 초4·초5·초6·중1·중2·중3·고1 각 20문항(정수 정답).
   // 각 학년 1학기 교육과정 범위, 난이도는 가장 쉬운 수준으로만. (독립 검산기 0오류 통과)
@@ -399,15 +399,23 @@
       return;
     }
     escaping = false;                     // 정면 뚫림 → 회피 종료
-    // ② 복도 가운데 유지 — 측면(ir4/ir5) 유효 시 정밀 보정, 아니면 전면 대각(ir1좌·ir3우)만으로도 동작(측면 죽어도 OK)
+    // ② 안티-스크레이프: 한쪽 벽에 '바짝'(초근접) → 벽 긁기 직전이므로 반대로 강하게(센서 정상 전제)
+    const HARD = 75, HARDST = 90;
+    if (ir4 < HARD && ir4 <= ir5) { setDrive(DRIVE, -HARDST); hudAct('◀ 우벽 바짝! 좌로'); await sleep(HOLD_MS); return; }
+    if (ir5 < HARD && ir5 <  ir4) { setDrive(DRIVE,  HARDST); hudAct('▶ 좌벽 바짝! 우로'); await sleep(HOLD_MS); return; }
+    // ③ 복도 가운데 유지 — 측면(ir4우/ir5좌) 정밀. 한쪽만 보이면 목표거리 유지, 둘 다 안 보이면 전면 대각.
     let st = 0, why = '⬆ 직진';
-    if (SIDE_ON && ir4 < SIDE_VALID && ir5 < SIDE_VALID) {      // 양측면 감지 → 가운데
-      st = Math.max(-SIDE_SMAX, Math.min(SIDE_SMAX, Math.round(SIDE_KP * (ir4 - ir5)))); // 우가 가까우면(ir4작음) 좌로
-      why = st === 0 ? '↑ 가운데(측면)' : (st > 0 ? '↗ 가운데보정 우' : '↖ 가운데보정 좌');
-    } else if (ir1 < TOF1 || ir3 < TOF3) {                     // 전면 대각으로 보이는 벽에서 비례 조향
+    const Rok = ir4 < SIDE_VALID, Lok = ir5 < SIDE_VALID;
+    if (SIDE_ON && Rok && Lok)      st = SIDE_KP * (ir4 - ir5);           // 양벽: 우가 가까우면(ir4작음) 좌로
+    else if (SIDE_ON && Rok)        st = SIDE_KP * (ir4 - SIDE_TARGET);   // 우벽만: 가까우면 좌로
+    else if (SIDE_ON && Lok)        st = -SIDE_KP * (ir5 - SIDE_TARGET);  // 좌벽만: 가까우면 우로
+    if (st !== 0) {
+      st = Math.max(-SIDE_SMAX, Math.min(SIDE_SMAX, Math.round(st)));
+      why = st > 0 ? '↗ 가운데보정 우' : '↖ 가운데보정 좌';
+    } else if (ir1 < TOF1 || ir3 < TOF3) {                     // 측면 안 보임 → 전면 대각(ir1좌·ir3우) 폴백
       const L = ir1 < TOF1 ? ir1 : TOF1, R = ir3 < TOF3 ? ir3 : TOF3;
       st = Math.round(STEER * (R - L) / Math.max(TOF1, TOF3)); // 좌가 가까우면(L작음) 우로(+)
-      if (st === 0 && ir1 < TOF1) st = STEER;                  // 한쪽만 보이면 그 벽에서 떨어지기
+      if (st === 0 && ir1 < TOF1) st = STEER;
       if (st === 0 && ir3 < TOF3) st = -STEER;
       st = Math.max(-STEER, Math.min(STEER, st));
       why = st > 0 ? '↳ 좌벽→우로' : st < 0 ? '↲ 우벽→좌로' : '⬆ 직진';
