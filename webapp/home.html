@@ -43,6 +43,10 @@
   .card .go{margin-top:14px;font-weight:700;font-size:1.15rem}
   .c1{background:linear-gradient(160deg,#5ea0ff,#37c9ad)}
   .c2{background:linear-gradient(160deg,#ff9db0,#ffb23e)}
+  .deepen{margin-top:20px;z-index:1;display:inline-flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:999px;
+    padding:12px 24px;color:var(--ink);text-decoration:none;box-shadow:var(--shadow);font-size:1.1rem;transition:transform .1s}
+  .deepen:active{transform:translateY(2px)}
+  .deepen span{color:var(--mut);font-size:.95rem;font-weight:300}
   .foot{position:fixed;bottom:14px;right:18px}
   .foot a{color:var(--mut);font-size:.85rem;text-decoration:none;border-bottom:1px dashed var(--line)}
 </style>
@@ -78,6 +82,8 @@
       <div class="go">시작하기 →</div>
     </button>
   </div>
+
+  <a class="deepen" href="park.html">🅿️ <b>정밀 주차 챌린지</b> <span>· 다 끝낸 친구를 위한 5분 심화 도전 →</span></a>
 
   <div class="foot"><a href="index.html">조종 패널(개발용)</a></div>
 </body>

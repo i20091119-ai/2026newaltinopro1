@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>정밀 주차 챌린지</title>
+<style>
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-light.woff2') format('woff2');font-weight:300;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-medium.woff2') format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-bold.woff2') format('woff2');font-weight:700;font-display:swap}
+  :root{--cream:#fff7ea;--ink:#3a3230;--mut:#9b8f86;--mint:#37c9ad;--sun:#ffb23e;--coral:#ff7a86;--blue:#5ea0ff;--grape:#b085ff;--line:#f0e6d8;--card:#fff;--shadow:0 8px 24px rgba(120,90,50,.12);--r:20px}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{font-family:'Esamanru','Pretendard',system-ui,sans-serif;font-weight:500;color:var(--ink);
+    background:linear-gradient(rgba(255,247,234,.55),rgba(255,247,234,.55)), url('assets/bg.png') center/cover no-repeat, var(--cream);
+    height:100vh;overflow:hidden;letter-spacing:.01em;user-select:none;padding:10px 16px;display:flex;flex-direction:column;gap:8px}
+  h1,h2,b{font-weight:700}
+  .hidden{display:none !important}
+  .btn{border:0;border-radius:16px;font-family:inherit;font-size:1.05rem;padding:12px 18px;cursor:pointer;background:var(--blue);color:#fff;box-shadow:var(--shadow)}
+  .btn:active{transform:translateY(2px)}.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+  .btn.mint{background:var(--mint)}.btn.coral{background:var(--coral)}.btn.sun{background:var(--sun)}.btn:disabled{opacity:.45}
+  .btn.big{font-size:1.35rem;padding:16px 22px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .topbar a{color:var(--blue);text-decoration:none}
+  .chip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow);font-size:.9rem;white-space:nowrap}
+  #frontChip{display:inline-block;text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;min-width:5ch}
+  .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px}
+  .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}.status.pending{color:#a86400;border-color:#ffe0a3}
+  .stage{flex:1;min-height:0;display:flex}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 18px;width:100%;overflow:auto}
+  .eyebrow{color:var(--sun);font-weight:700;font-size:.85rem;letter-spacing:.08em}
+  h1{font-size:1.4rem;margin:2px 0 4px}.lead{color:var(--mut);margin:0 0 8px}
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:stretch}
+  @media (max-width:820px){.grid{grid-template-columns:1fr}}
+  .panel{background:#f9fdff;border:2px solid #d3e8ff;border-radius:16px;padding:12px 14px}
+  .gauge{display:flex;gap:16px;align-items:center;justify-content:center;margin:2px 0 6px}
+  .gbox{text-align:center;min-width:130px}
+  .gbox .glab{color:var(--mut);font-size:.85rem}
+  .gbox .gval{font-size:2.6rem;font-weight:800;line-height:1.1}
+  .gbox.tgt .gval{color:var(--grape)}.gbox.now .gval{color:var(--blue)}
+  .near{height:14px;border-radius:999px;background:linear-gradient(90deg,#ff7a86,#ffb23e,#37c9ad);position:relative;margin:8px 4px 2px}
+  .near::after{content:'가까움 ← → 멈';position:absolute;left:0;right:0;top:16px;font-size:.72rem;color:var(--mut);text-align:center}
+  /* 조종 패드 */
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;max-width:320px;margin:6px auto 0}
+  .pad button{font-size:1.6rem;padding:16px 0;border-radius:16px;border:2px solid var(--line);background:#fff;box-shadow:var(--shadow);font-family:inherit}
+  .pad button.pressed{background:var(--mint);color:#fff}
+  .pad .up{grid-column:2;grid-row:1}.pad .left{grid-column:1;grid-row:2}.pad .down{grid-column:2;grid-row:2}.pad .right{grid-column:3;grid-row:2}
+  .prob{background:#f6fbff;border:2px solid #d3e8ff;border-radius:14px;padding:12px;font-size:1.15rem;margin:8px 0;text-align:center}
+  .fb{min-height:1.3em;color:var(--coral);font-weight:700;margin-top:4px;text-align:center}
+  input[type=number]{font-family:inherit;font-size:1.25rem;padding:10px 12px;border-radius:12px;border:2px solid var(--line);text-align:center;width:120px}
+  .scorebar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+  .scorebar .sc{background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 14px;text-align:center;min-width:90px}
+  .scorebar .sc b{font-size:1.5rem;display:block;color:var(--ink)}
+  .scorebar .sc span{color:var(--mut);font-size:.8rem}
+  .stars{font-size:2.2rem;text-align:center;letter-spacing:6px;margin:4px 0}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--mint);color:#fff;padding:12px 22px;border-radius:999px;font-weight:700;opacity:0;transition:.25s;pointer-events:none;z-index:20;box-shadow:var(--shadow)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="home.html">← 홈</a>
+    <h1 style="margin:0">🅿️ 정밀 주차 챌린지 <span class="lead" style="font-size:.9rem">심화</span></h1>
+    <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="chip">🚗 앞거리 <b id="frontChip">–</b></span>
+      <span id="battChip" class="status" style="display:none">🔋 –</span>
+      <button id="connBtn" class="btn ghost" style="padding:6px 10px;font-size:.85rem">🔗 연결</button>
+      <button id="btSettings" class="btn ghost" style="padding:6px 10px;font-size:.85rem">📶 설정</button>
+      <span id="status" class="status">🔗 연결 안 됨</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <section class="card">
+      <p class="lead">차를 몰아 <b>목표 거리</b>에 최대한 <b>정확히</b> 멈춰요. 멈춘 뒤 <b>오차 = |목표 − 현재|</b>를 계산하면 점수를 받아요. 오차가 작을수록 고득점! 🏆</p>
+      <div class="grid">
+        <!-- 왼쪽: 게이지 + 조종 -->
+        <div class="panel">
+          <div class="gauge">
+            <div class="gbox tgt"><div class="glab">🎯 목표 거리(TOF)</div><div class="gval" id="targetVal">120</div></div>
+            <div class="gbox now"><div class="glab">🚗 지금 앞거리</div><div class="gval" id="frontNow">–</div></div>
+          </div>
+          <div class="near"></div>
+          <div class="pad">
+            <button class="up" id="d-up">▲</button>
+            <button class="left" id="d-left">◀</button>
+            <button class="down" id="d-down">▼</button>
+            <button class="right" id="d-right">▶</button>
+          </div>
+          <div style="text-align:center;margin-top:10px"><button id="parkBtn" class="btn sun big">🅿️ 주차 완료 · 측정!</button></div>
+        </div>
+        <!-- 오른쪽: 채점(오차 수학) -->
+        <div class="panel" style="background:#fffdf7;border-color:#ffe0a3">
+          <div class="eyebrow">📐 오차 계산 · 채점</div>
+          <div id="preMeasure" class="lead" style="margin-top:8px">차를 목표 거리에 맞춰 세운 뒤 <b>[주차 완료]</b>를 누르세요. 그러면 오차 계산 문제가 나와요.</div>
+          <div id="scoreArea" class="hidden">
+            <div class="prob" id="errProb">오차 = | 목표 − 현재 | = ?</div>
+            <div style="text-align:center"><input id="errInput" type="number" placeholder="?"> <button id="errOk" class="btn">확인</button></div>
+            <div class="fb" id="errFb"></div>
+            <div id="resultBox" class="hidden">
+              <div class="stars" id="stars">⭐</div>
+              <div style="text-align:center;font-size:1.15rem">이번 오차 <b id="thisErr">–</b> · 점수 <b id="thisScore">–</b></div>
+              <div style="text-align:center;margin-top:10px"><button id="nextBtn" class="btn mint big">다음 도전 →</button></div>
+            </div>
+          </div>
+          <div class="scorebar">
+            <div class="sc"><b id="tries">0</b><span>도전 횟수</span></div>
+            <div class="sc"><b id="best">–</b><span>최고 점수</span></div>
+            <div class="sc"><b id="minErr">–</b><span>최소 오차</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast"></div>
+  <script src="js/protocol.js"></script>
+  <script src="js/transport.js"></script>
+  <script src="js/park.js"></script>
+</body>
+</html>
