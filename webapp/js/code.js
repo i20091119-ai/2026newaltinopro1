@@ -29,7 +29,6 @@
   let DRIVE = 300, STEER = 30;              // 순항 속도 / 벽 근접 시 살짝 틀기
   let TURN = 127;                           // 정면 벽 회피 회전(강하게 꺾기)
   const WF_BACK = -300, HOLD_MS = 350;      // 아주 가까울 때 후진 / 동작 유지 시간
-  const NEAR2 = 130;                        // 이 값 미만이면 '코앞' → 후진하며 회피
   const BUMP_SPEED = -350, BUMP_MS = 200;   // 터널 진입 범프
   const PHASE_TIMEOUT = 25000;
   // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 복도 가운데 유지
@@ -375,41 +374,45 @@
   // ---- 주행: TOF 벽추종 (실측 스케일: 작을수록 가까움) ----
   // 조향 부호: +STEER=우회전, -STEER=좌회전.
   function hudAct(t) { const e = $('hudAct'); if (e) e.textContent = t; }
+  // 정면 회피 방향 래치(+1=우 / -1=좌). 한 번 정하면 정면이 뚫릴 때까지 유지 → 좌우 뒤집힘(와리가리) 방지.
+  let escaping = false, escDir = 1;
+  function pickEscapeDir(ir1, ir3, ir4, ir5) {
+    // 더 열린 쪽 선택. 측면값은 유효(<SIDE_VALID)할 때만 참고, 아니면 전면 대각(ir1/ir3)만으로 결정.
+    const rM = Math.min(ir3, ir4 < SIDE_VALID ? ir4 : 99999);
+    const lM = Math.min(ir1, ir5 < SIDE_VALID ? ir5 : 99999);
+    return rM >= lM ? 1 : -1;
+  }
   async function wallFollowStep() {
     const { ir1, ir2, ir3, ir4, ir5 } = sensor;
-    if (ir2 < TOF2) {                     // ① 정면 벽 → 열린 쪽 판단 후 K턴 탈출
-      // 오른쪽 열림 = 전면우(ir3)+우측면(ir4) / 왼쪽 열림 = 전면좌(ir1)+좌측면(ir5)
-      const openR = Math.min(ir3, ir4), openL = Math.min(ir1, ir5);
-      const rightOpen = openR >= openL;
-      const FULL = 127;                   // 핸들 풀락
-      if (ir2 < NEAR2) {                  // 코앞 → K턴: 열린쪽 '반대로' 풀락 후진 → 열린쪽으로 풀락 전진
-        if (rightOpen) {
-          setDrive(WF_BACK, -FULL); hudAct('⤿ 후진(핸들 좌·오른쪽 탈출)'); await sleep(HOLD_MS);
-          setDrive(DRIVE, FULL);   hudAct('↱ 전진(오른쪽으로)');        await sleep(HOLD_MS);
-        } else {
-          setDrive(WF_BACK, FULL); hudAct('⤾ 후진(핸들 우·왼쪽 탈출)'); await sleep(HOLD_MS);
-          setDrive(DRIVE, -FULL);  hudAct('↰ 전진(왼쪽으로)');          await sleep(HOLD_MS);
-        }
-      } else {                           // 접근 중 → 열린쪽으로 강하게 틀며 전진
-        setDrive(Math.round(DRIVE * 0.6), rightOpen ? TURN : -TURN);
-        hudAct(rightOpen ? '↱ 정면벽 우회피' : '↰ 정면벽 좌회피'); await sleep(HOLD_MS);
+    const FULL = 127;
+    const near = Math.max(45, Math.round(TOF2 * 0.55));  // '코앞' = 반응거리의 약 55%(슬라이더 따라 자동 조정)
+    const clear = TOF2 + 40;                             // 이만큼 뚫려야 회피 종료(히스테리시스)
+    // ① 정면 벽 — 한 번 정한 방향으로 '끝까지' 회피(중간에 좌우 안 뒤집음)
+    if (ir2 < TOF2 || (escaping && ir2 < clear)) {
+      if (!escaping) { escaping = true; escDir = pickEscapeDir(ir1, ir3, ir4, ir5); }
+      if (ir2 < near) {                   // 코앞 → K턴: 열린쪽 '반대로' 후진 → 열린쪽으로 전진
+        setDrive(WF_BACK, -escDir * FULL); hudAct(escDir > 0 ? '⤿ 후진(오른쪽 탈출)' : '⤾ 후진(왼쪽 탈출)'); await sleep(HOLD_MS);
+        setDrive(DRIVE,     escDir * FULL); hudAct(escDir > 0 ? '↱ 전진(오른쪽)'   : '↰ 전진(왼쪽)');       await sleep(HOLD_MS);
+      } else {                            // 접근 중 → 열린쪽으로 강하게 틀며 전진(후진 없이)
+        setDrive(Math.round(DRIVE * 0.7), escDir * TURN); hudAct(escDir > 0 ? '↱ 정면벽 우회피' : '↰ 정면벽 좌회피'); await sleep(HOLD_MS);
       }
-    } else if (ir1 < TOF1) {              // ② 좌 벽 근접 → 오른쪽으로 살짝
-      setDrive(DRIVE, STEER); hudAct('↳ 좌벽→우로'); await sleep(HOLD_MS);
-    } else if (ir3 < TOF3) {              // ③ 우 벽 근접 → 왼쪽으로 살짝
-      setDrive(DRIVE, -STEER); hudAct('↲ 우벽→좌로'); await sleep(HOLD_MS);
-    } else if (SIDE_ON && (ir4 < SIDE_VALID || ir5 < SIDE_VALID)) {
-      // ④ 측면 정밀 보정: 양쪽=가운데 / 한쪽=목표거리 유지 (50ms 연속 미세조정)
-      const R = ir4, L = ir5; let st;   // +st=우회전, -st=좌회전
-      if (R < SIDE_VALID && L < SIDE_VALID) st = SIDE_KP * (R - L);          // 우가 가까우면(R작음) 좌로
-      else if (R < SIDE_VALID)              st = SIDE_KP * (R - SIDE_TARGET); // 우벽: 가까우면(R<목표) 좌로
-      else                                  st = -SIDE_KP * (L - SIDE_TARGET); // 좌벽: 가까우면(L<목표) 우로
-      st = Math.max(-SIDE_SMAX, Math.min(SIDE_SMAX, Math.round(st)));
-      setDrive(DRIVE, st); hudAct(st === 0 ? '↑ 가운데 직진' : (st > 0 ? '↗ 가운데보정 우' : '↖ 가운데보정 좌'));
-      await sleep(STREAM_MS);
-    } else {                              // ⑤ 뚫림 → 직진(즉시 재판단)
-      setDrive(DRIVE, 0); hudAct('⬆ 직진'); await sleep(STREAM_MS);
+      return;
     }
+    escaping = false;                     // 정면 뚫림 → 회피 종료
+    // ② 복도 가운데 유지 — 측면(ir4/ir5) 유효 시 정밀 보정, 아니면 전면 대각(ir1좌·ir3우)만으로도 동작(측면 죽어도 OK)
+    let st = 0, why = '⬆ 직진';
+    if (SIDE_ON && ir4 < SIDE_VALID && ir5 < SIDE_VALID) {      // 양측면 감지 → 가운데
+      st = Math.max(-SIDE_SMAX, Math.min(SIDE_SMAX, Math.round(SIDE_KP * (ir4 - ir5)))); // 우가 가까우면(ir4작음) 좌로
+      why = st === 0 ? '↑ 가운데(측면)' : (st > 0 ? '↗ 가운데보정 우' : '↖ 가운데보정 좌');
+    } else if (ir1 < TOF1 || ir3 < TOF3) {                     // 전면 대각으로 보이는 벽에서 비례 조향
+      const L = ir1 < TOF1 ? ir1 : TOF1, R = ir3 < TOF3 ? ir3 : TOF3;
+      st = Math.round(STEER * (R - L) / Math.max(TOF1, TOF3)); // 좌가 가까우면(L작음) 우로(+)
+      if (st === 0 && ir1 < TOF1) st = STEER;                  // 한쪽만 보이면 그 벽에서 떨어지기
+      if (st === 0 && ir3 < TOF3) st = -STEER;
+      st = Math.max(-STEER, Math.min(STEER, st));
+      why = st > 0 ? '↳ 좌벽→우로' : st < 0 ? '↲ 우벽→좌로' : '⬆ 직진';
+    }
+    setDrive(DRIVE, st); hudAct(why); await sleep(st === 0 ? STREAM_MS : HOLD_MS);
   }
   async function driveUntil(cond) {
     const t0 = Date.now();
@@ -424,7 +427,7 @@
   }
 
   async function runDelivery() {   // 원본 '실행1' 시퀀스 재현
-    if (running) return; running = true; setRunUI(true); state.dotClear();
+    if (running) return; running = true; escaping = false; setRunUI(true); state.dotClear();
     // 원본 도입부: 정지 1초 → GO 표시 1초 → 출발
     setDrive(0, 0); await sleep(1000);
     const goEl = $('goFlash'); if (goEl) { goEl.classList.remove('hidden'); await sleep(1000); goEl.classList.add('hidden'); }
@@ -446,7 +449,7 @@
   }
   // 계속 주행(튜닝/시연): 미션·정지 없이 벽만 따라 무한 주행 → 정지 누를 때까지
   async function runLoop() {
-    if (running) return; running = true; setRunUI(true); toast('🔁 계속 주행 — 코스를 계속 돌아요 (정지로 멈춤)');
+    if (running) return; running = true; escaping = false; setRunUI(true); toast('🔁 계속 주행 — 코스를 계속 돌아요 (정지로 멈춤)');
     setDrive(0, 0); await sleep(400);
     while (running) { await wallFollowStep(); }
     setDrive(0, 0);
@@ -512,6 +515,51 @@
     });
   }
 
+  // ---- 🔬 센서 점검 오버레이 (측면센서 작동 확인용) ----
+  // 각 센서 앞에 손을 대보며 숫자가 변하는지 확인 → '반응함' 뱃지. 측면(ir4/ir5)이 안 변하면 그 로봇은 측면센서 문제.
+  let sensorTestTimer = null;
+  const ST_ROWS = [
+    { k: 'ir1', name: '전면 좌', side: false }, { k: 'ir2', name: '전면 중앙', side: false }, { k: 'ir3', name: '전면 우', side: false },
+    { k: 'ir4', name: '우측면 ▶', side: true }, { k: 'ir5', name: '◀ 좌측면', side: true },
+    { k: 'ir6', name: '후면', side: false }, { k: 'cds', name: '조도(빛)', side: false },
+  ];
+  const stSeen = {};
+  function openSensorTest() {
+    ST_ROWS.forEach(r => stSeen[r.k] = { min: Infinity, max: -Infinity });
+    let ov = $('stOverlay');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'stOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(20,20,30,.6);display:flex;align-items:center;justify-content:center;z-index:45';
+      ov.innerHTML = `<div style="background:#fff;border-radius:20px;padding:18px 22px;width:min(640px,94vw);max-height:90vh;overflow:auto;box-shadow:var(--shadow)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <h2 style="margin:0">🔬 센서 점검</h2><button id="stClose" class="btn ghost" style="padding:6px 12px">닫기</button></div>
+        <p class="lead" style="margin:0 0 10px">각 센서 앞에 <b>손을 가까이 대보세요</b>. 숫자가 변하면 <b>반응함 ✅</b>. <b>측면(우측면/좌측면)</b>이 안 변하면 그 로봇은 측면센서가 없거나 고장이에요 — 그땐 [측면 정밀주행]을 꺼도 전면 대각으로 달립니다. (값: 작을수록 가까움, 벽 없음≈1300)</p>
+        <div id="stList"></div></div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#stClose').onclick = closeSensorTest;
+    }
+    const list = ov.querySelector('#stList');
+    list.innerHTML = ST_ROWS.map(r => `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:6px;border:2px solid ${r.side ? '#ffd08a' : 'var(--line)'};border-radius:14px;background:${r.side ? '#fff8ec' : '#fafafa'}">
+        <b style="flex:1;font-size:1.15rem">${r.name}</b>
+        <span id="st-${r.k}" style="font-size:1.9rem;font-weight:800;min-width:5ch;text-align:right;font-variant-numeric:tabular-nums">–</span>
+        <span id="stb-${r.k}" class="status" style="min-width:9ch;text-align:center">—</span></div>`).join('');
+    ov.classList.remove('hidden');
+    if (sensorTestTimer) clearInterval(sensorTestTimer);
+    sensorTestTimer = setInterval(() => {
+      ST_ROWS.forEach(r => {
+        const v = sensor[r.k]; if (v == null || v >= 999) return;
+        const s = stSeen[r.k]; if (v < s.min) s.min = v; if (v > s.max) s.max = v;
+        const el = $('st-' + r.k); if (el) el.textContent = v;
+        const b = $('stb-' + r.k); if (b) {
+          const react = (s.max - s.min) > 15;
+          b.textContent = react ? '반응함 ✅' : '손을 대보세요';
+          b.className = 'status ' + (react ? 'ok' : '');
+        }
+      });
+    }, 150);
+  }
+  function closeSensorTest() { if (sensorTestTimer) { clearInterval(sensorTestTimer); sensorTestTimer = null; } const ov = $('stOverlay'); if (ov) ov.classList.add('hidden'); }
+
   function noteOptions(sel, def) { Object.keys(NOTE_NAME).forEach(code => { const o = document.createElement('option'); o.value = code; o.textContent = NOTE_NAME[code]; if (+code === def) o.selected = true; sel.appendChild(o); }); }
 
   function init() {
@@ -572,6 +620,8 @@
     CAL_IDS.forEach(id => { const el = $(id); if (el) el.addEventListener('input', saveCal); });
     if (sideChk) sideChk.addEventListener('change', saveCal);
     restoreCal();
+    // 센서 점검
+    if ($('sensorTest')) $('sensorTest').onclick = openSensorTest;
     // 연결
     $('connBtn').onclick = () => { if (T.AndroidBridgeTransport.supported) pickAndConnect(); else connect('mock'); };
     $('btSettings').onclick = () => { if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings(); else toast('실기(APK)에서만 열려요'); };
