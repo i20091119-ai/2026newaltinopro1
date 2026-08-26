@@ -25,8 +25,8 @@
   // ---- 코인 경제 (속도업) ----
   let coins = 0;
   let speedTier = 0;
-  const SPEED_TIERS = [350, 450, 550, 650];
-  const UPGRADE_COST = [3, 5, 8];      // tier 0→1, 1→2, 2→3 비용(코인)
+  const SPEED_TIERS = [350, 400, 450, 500, 550];   // 초기 350, 업그레이드마다 +50, 상한 550
+  const UPGRADE_COST = [2, 3, 4, 5];   // tier 0→1,1→2,2→3,3→4 비용(코인)
   const speedNow = () => SPEED_TIERS[speedTier];
 
   // ---- 꼬리잡기 판정 ----

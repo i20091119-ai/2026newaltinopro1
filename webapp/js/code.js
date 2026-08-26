@@ -134,11 +134,52 @@
       { q: 'x² − 17x + 72 = 0 의 큰 근은?', a: 9 }, { q: 'x² − 7x + 10 = 0 의 큰 근은?', a: 5 } ] },
   };
   try { window.__f1Problems = PROBLEMS; } catch (e) {} // 테스트/검산용 노출
+  // ④ 배송지: 자동차/배송 소재의 수학 문제를 풀어 '상자 수'를 구하면, 그 개수의 배송지 문자를 획득.
+  // box(상자 수)는 5개 구역 모두 서로 다른 값 → 계산 결과가 배송지를 유일하게 결정.
   const ZONES = [
-    { name: '북부 물류창고', code: 'N' }, { name: '동부 집하장', code: 'E' },
-    { name: '중앙 배송센터', code: 'D' }, { name: '서부 터미널', code: 'W' }, { name: '남부 보관소', code: 'S' },
+    { name: '북부 물류창고', code: 'N', box: 12, probs: [
+      { q: '🚚 배송 상자를 한 줄에 4개씩 3줄로 쌓았어요. 상자는 모두 몇 개?', a: 12 },
+      { q: '🚚 배송차 2대에 상자를 6개씩 실었어요. 상자는 모두 몇 개?', a: 12 } ] },
+    { name: '서부 터미널', code: 'W', box: 15, probs: [
+      { q: '🚚 한 줄에 5개씩 3줄로 쌓은 배송 상자는 모두 몇 개?', a: 15 },
+      { q: '🚚 상자 21개 중 6개를 배달했어요. 남은 상자는 몇 개?', a: 15 } ] },
+    { name: '동부 집하장', code: 'E', box: 18, probs: [
+      { q: '🚚 한 줄에 6개씩 3줄로 쌓은 배송 상자는 모두 몇 개?', a: 18 },
+      { q: '🚚 상자 20개 중 2개를 내렸어요. 남은 상자는 몇 개?', a: 18 } ] },
+    { name: '남부 보관소', code: 'S', box: 20, probs: [
+      { q: '🚚 한 상자에 물건 5개씩, 4상자예요. 물건은 모두 몇 개?', a: 20 },
+      { q: '🚚 배송차 2대에 상자를 10개씩 실었어요. 상자는 모두 몇 개?', a: 20 } ] },
+    { name: '중앙 배송센터', code: 'D', box: 24, probs: [
+      { q: '🚚 한 상자에 물건 8개씩, 3상자예요. 물건은 모두 몇 개?', a: 24 },
+      { q: '🚚 배송차 4대에 상자를 6개씩 실었어요. 상자는 모두 몇 개?', a: 24 } ] },
   ];
   const NOTE_NAME = { 37: '도', 39: '레', 41: '미', 42: '파', 44: '솔', 46: '라', 48: '시', 49: '높은도' };
+  // 계이름 → 주파수(Hz) — 태블릿 스피커로 미리듣기(로봇 미연결에도 소리 확인 가능)
+  const NOTE_FREQ = { 37: 523.25, 39: 587.33, 41: 659.25, 42: 698.46, 44: 783.99, 46: 880.0, 48: 987.77, 49: 1046.5 };
+  let audioCtx = null;
+  function beep(freq, ms) {  // Web Audio 짧은 '삐' — 부드러운 사인파
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t = audioCtx.currentTime, osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+      osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + ms / 1000 + 0.02);
+    } catch (e) {}
+  }
+  // 미리듣기: 태블릿 스피커 + (연결 시) 로봇 부저로도 실제 음 재생
+  async function previewNote(code) {
+    beep(NOTE_FREQ[code] || 660, 400);
+    if (transport && transport.connected) {
+      try { state.soundSet(code); transport.send(P.buildFrame(state)); await sleep(420); state.soundSet(0); transport.send(P.buildFrame(state)); } catch (e) {}
+    }
+  }
+  async function previewBoth() {   // ③ 화면에서 고른 현재 두 음을 이어 재생
+    const n1 = +($('note1') && $('note1').value) || note1;
+    const n2 = +($('note2') && $('note2').value) || note2;
+    await previewNote(n1); await sleep(120); await previewNote(n2);
+  }
   const FONT = { // 8x8 배송지 글자
     N: [0x00,0x42,0x62,0x52,0x4A,0x46,0x42,0x00], E: [0x00,0x7E,0x40,0x7C,0x40,0x40,0x7E,0x00],
     D: [0x00,0x7C,0x42,0x42,0x42,0x42,0x7C,0x00], W: [0x00,0x41,0x41,0x49,0x49,0x55,0x22,0x00],
@@ -156,6 +197,7 @@
 
   const BATT_LOW = 700; let battWarned = false, lastUi = 0;
   function onSensor(s) {
+    if (typeof s.cds === 'number') s.cds = Math.max(30, s.cds); // 조도 최소 30 보장(0 표시로 인한 혼란 방지)
     Object.assign(sensor, s);  // 센서 자체는 매 프레임 갱신(주행 판단용)
     // 화면 숫자는 250ms마다만 갱신(초당 4회) — 덜덜 떨림 방지. 폭은 CSS 고정 박스로.
     const now = Date.now(); if (now - lastUi < 250) return; lastUi = now;
@@ -213,13 +255,35 @@
     else $('ansFb').textContent = '복구 실패 — 다시 계산해 봐요.';
   }
 
-  // ④ 배송지
+  // ④ 배송지 — 배송 계산 문제를 풀어야 문자 획득
+  let curZoneP = null, zoneSolved = false;
   function setupZone() {
     if (!zone) zone = ZONES[Math.floor(Math.random() * ZONES.length)];
-    $('destName').textContent = zone.name;
+    if (!curZoneP) curZoneP = zone.probs[Math.floor(Math.random() * zone.probs.length)];
+    try { window.__f1Zone = { box: zone.box, code: zone.code }; } catch (e) {} // 테스트/검산용
+    $('zoneProb').textContent = curZoneP.q;
+    // 참고표: 상자 수 | 배송 구역 | 문자 (풀기 전엔 힌트 강조 없음)
     const t = $('zoneTable'); t.querySelectorAll('.zrow').forEach(r => r.remove());
-    ZONES.forEach(z => { const tr = document.createElement('tr'); tr.className = 'zrow' + (z.code === zone.code ? ' hit' : ''); tr.innerHTML = `<td>${z.name}</td><td>${z.code}</td>`; t.appendChild(tr); });
+    const rows = ZONES.slice().sort((a, b) => a.box - b.box);
+    rows.forEach(z => { const tr = document.createElement('tr'); tr.className = 'zrow' + (zoneSolved && z.code === zone.code ? ' hit' : ''); tr.dataset.code = z.code; tr.innerHTML = `<td>${z.box}개</td><td>${z.name}</td><td>${z.code}</td>`; t.appendChild(tr); });
+    if (zoneSolved) revealZone(); else { $('letterReveal').classList.add('hidden'); $('toStep5').classList.add('hidden'); $('destName').textContent = '계산해서 찾기!'; }
+  }
+  function revealZone() {
+    zoneSolved = true;
+    $('destName').textContent = zone.name;
     $('letterVal').textContent = zone.code;
+    $('letterReveal').classList.remove('hidden');
+    $('toStep5').classList.remove('hidden');
+    const t = $('zoneTable'); t.querySelectorAll('.zrow').forEach(r => r.classList.toggle('hit', r.dataset.code === zone.code));
+  }
+  function checkZone() {
+    const v = parseInt($('zoneAns').value, 10);
+    const fb = $('zoneFb');
+    if (isNaN(v)) { fb.textContent = '숫자를 넣어요.'; fb.style.color = 'var(--coral)'; return; }
+    if (v === zone.box) {
+      fb.textContent = `정답! 상자 ${zone.box}개 → 배송지 문자 ${zone.code} 획득! 📦`; fb.style.color = 'var(--mint)';
+      revealZone(); toast(`📦 배송지 문자 [${zone.code}] 획득!`);
+    } else { fb.textContent = '다시 계산해 봐요. (상자 수를 세어 표에서 찾기)'; fb.style.color = 'var(--coral)'; }
   }
 
   // ⑤ 블록 조립 (아주 약간의 코딩)
@@ -458,15 +522,22 @@
     // 스텝 이동
     $('toStep2').onclick = () => go(2);
     $('toStep3').onclick = () => go(3);
-    $('toStep4').onclick = () => { note1 = +$('note1').value; note2 = +$('note2').value; repeatN = Math.max(1, +$('repeatN').value || 1); go(4); };
+    $('toStep4').onclick = () => { note1 = +$('note1').value; note2 = +$('note2').value; repeatN = Math.min(10, Math.max(1, +$('repeatN').value || 1)); $('repeatN').value = repeatN; go(4); };
     $('toStep5').onclick = () => go(5);
     $('toStep6').onclick = () => go(6);
     document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => go(+b.dataset.back));
+    // ④ 배송지 문제 확인
+    if ($('zoneOk')) $('zoneOk').onclick = checkZone;
+    if ($('zoneAns')) $('zoneAns').addEventListener('keydown', e => { if (e.key === 'Enter') checkZone(); });
     // ② 암호
     document.querySelectorAll('.gradebtn').forEach(b => b.onclick = () => pickGrade(b.dataset.g));
     $('ansOk').onclick = checkAns; $('ansInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkAns(); });
-    // ③ 소리 선택
+    // ③ 소리 선택 + 미리듣기
     noteOptions($('note1'), 37); noteOptions($('note2'), 41);
+    if ($('prev1')) $('prev1').onclick = () => previewNote(+$('note1').value);
+    if ($('prev2')) $('prev2').onclick = () => previewNote(+$('note2').value);
+    if ($('prevBoth')) $('prevBoth').onclick = previewBoth;
+    if ($('repeatN')) $('repeatN').addEventListener('input', () => { const el = $('repeatN'); if (+el.value > 10) el.value = 10; });
     // ⑤ 조립 확인
     $('blockCheck').onclick = checkBlocks;
     // ⑥ 실행

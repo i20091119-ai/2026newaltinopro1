@@ -147,8 +147,10 @@
       <h1>터널 소리를 코딩하자 🎵</h1>
       <p class="lead">터널을 지날 때 차 부저로 두 음을 번갈아 <b>몇 번</b> 낼지 정해요. 고른 계이름과 횟수를 ✏️ <b>활동지에 쓰세요</b>.</p>
       <div class="soundcode">
-        <div class="row"><span>🔁 <input id="repeatN" type="number" value="3" style="width:90px"> 번 반복:</span></div>
-        <div class="row">소리 <select id="note1"></select> → 0.5초 → 소리 <select id="note2"></select> → 0.5초</div>
+        <div class="row">소리 <select id="note1"></select> <button id="prev1" class="btn ghost sm" style="margin:0" title="이 소리 미리듣기">▶ 듣기</button>
+          → 0.5초 → 소리 <select id="note2"></select> <button id="prev2" class="btn ghost sm" style="margin:0" title="이 소리 미리듣기">▶ 듣기</button> → 0.5초</div>
+        <div class="row" style="margin-top:6px"><button id="prevBoth" class="btn ghost sm" style="margin:0">🔊 두 소리 이어 듣기</button></div>
+        <div class="row" style="margin-top:10px"><span>🔁 <input id="repeatN" type="number" value="3" min="1" max="10" style="width:90px"> 번 반복 <span class="lead" style="margin:0">(최대 10번)</span></span></div>
       </div>
       <div class="foot"><button class="btn ghost" data-back="2">← 이전</button><button id="toStep4" class="btn">다음 →</button></div>
     </section>
@@ -156,11 +158,14 @@
     <!-- 4 배송지 -->
     <section id="step4" class="card hidden">
       <div class="eyebrow">④ 미션2 배송지 문자</div>
-      <h1>오늘의 배송지 📦</h1>
-      <p class="lead">배송지: <b id="destName">--</b> — 표에서 <b>문자</b>를 찾아요. 도착하면 이 글자가 떠요!</p>
-      <table id="zoneTable"><tr><th>배송 구역</th><th>문자</th></tr></table>
-      <div class="codebox"><div class="lead" style="margin:0">표시할 문자 — ✏️ 활동지에 쓰세요</div><div class="val" id="letterVal">--</div></div>
-      <div class="foot"><button class="btn ghost" data-back="3">← 이전</button><button id="toStep5" class="btn">다음 →</button></div>
+      <h1>배송 문제를 풀고 문자를 받자 📦</h1>
+      <p class="lead"><b>배송 상자 수</b>를 계산하고, 그 개수의 <b>배송지 문자</b>를 아래 표에서 찾아요. 배송지: <b id="destName">계산해서 찾기!</b></p>
+      <div class="prob" id="zoneProb">문제를 준비 중…</div>
+      <div class="row"><input id="zoneAns" type="number" placeholder="상자 수?"><button id="zoneOk" class="btn">확인</button></div>
+      <div class="fb" id="zoneFb"></div>
+      <table id="zoneTable"><tr><th>상자 수</th><th>배송 구역</th><th>문자</th></tr></table>
+      <div id="letterReveal" class="codebox hidden"><div class="lead" style="margin:0">표시할 문자 — ✏️ 활동지에 쓰세요</div><div class="val" id="letterVal">--</div></div>
+      <div class="foot"><button class="btn ghost" data-back="3">← 이전</button><button id="toStep5" class="btn hidden">다음 →</button></div>
     </section>
 
     <!-- 5 블록 조립 -->
