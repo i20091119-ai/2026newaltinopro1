@@ -385,12 +385,15 @@
   async function wallFollowStep() {
     const { ir1, ir2, ir3, ir4, ir5 } = sensor;
     const FULL = 127;
+    // 전면 3개(좌·중·우) 중 '가장 가까운' 것으로 판단 → 코너에서 앞 대각만 껴도 회피·후진(끼임 방지)
+    const frontMin = Math.min(ir1, ir2, ir3);
     const near = Math.max(45, Math.round(TOF2 * 0.55));  // '코앞' = 반응거리의 약 55%(슬라이더 따라 자동 조정)
     const clear = TOF2 + 40;                             // 이만큼 뚫려야 회피 종료(히스테리시스)
-    // ① 정면 벽 — 한 번 정한 방향으로 '끝까지' 회피(중간에 좌우 안 뒤집음)
-    if (ir2 < TOF2 || (escaping && ir2 < clear)) {
+    const DIAG_JAM = 70;                                 // 앞 대각(좌/우)이 이보다 가까우면 코너에 낀 것(벽따라가기는 오작동 방지)
+    // ① 정면 벽/코너 — 한 번 정한 방향으로 '끝까지' 회피(중간에 좌우 안 뒤집음)
+    if (ir2 < TOF2 || Math.min(ir1, ir3) < DIAG_JAM || (escaping && ir2 < clear)) {
       if (!escaping) { escaping = true; escDir = pickEscapeDir(ir1, ir3, ir4, ir5); }
-      if (ir2 < near) {                   // 코앞 → K턴: 열린쪽 '반대로' 후진 → 열린쪽으로 전진
+      if (frontMin < near) {              // 코앞/코너에 낌 → K턴: 열린쪽 '반대로' 후진 → 열린쪽으로 전진
         setDrive(WF_BACK, -escDir * FULL); hudAct(escDir > 0 ? '⤿ 후진(오른쪽 탈출)' : '⤾ 후진(왼쪽 탈출)'); await sleep(HOLD_MS);
         setDrive(DRIVE,     escDir * FULL); hudAct(escDir > 0 ? '↱ 전진(오른쪽)'   : '↰ 전진(왼쪽)');       await sleep(HOLD_MS);
       } else {                            // 접근 중 → 열린쪽으로 강하게 틀며 전진(후진 없이)
