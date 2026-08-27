@@ -83,6 +83,7 @@
     applyMood();
 
     updateEnergyUI();
+    if (canMove && ++saveTick >= 20) { saveTick = 0; saveState(); } // 주행 중 에너지 소모 ~2초마다 저장
     if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
   }
 
@@ -127,6 +128,7 @@
     coins -= cost; speedTier++;
     sfx('upgrade');
     updateShopUI();
+    saveState();
     toast(`속도 ${speedNow()}! 🚀`);
   }
 
@@ -159,6 +161,7 @@
       sfx('caught');
       beepFlash();
       drawCount(caught);   // 알티노 도트매트릭스에 잡힌 횟수 표시
+      saveState();
       oopsTicks = Math.round(800 / STREAM_MS);
       armed = false; cooldown = MIN_INTERVAL_TICKS;
     }
@@ -227,6 +230,7 @@
       coins += 1;
       sfx('charge');
       updateEnergyUI();
+      saveState();
       // 연속 풀이: 모달 유지하고 다음 문제 바로 (에너지·코인 몰아 벌기)
       toast(`+${GAIN_PER_SOLVE} 에너지 ⚡  +1 코인 🪙`);
       genProblem();
@@ -334,6 +338,26 @@
     transport = null; setStatus('🔗 연결 안 됨', 'off');
   }
 
+  // ---- 진행 상태 저장/복원 (연결 끊겨 앱 재시작해도 에너지·코인·속도업 유지) ----
+  const SAVE_KEY = 'altinoTagV1';
+  let saveTick = 0;
+  function saveState() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ e: Math.round(energy), c: coins, s: speedTier, ca: caught, g: selectedGrade })); } catch (e) {}
+  }
+  function clearState() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+  function restoreState() {
+    try {
+      const o = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+      if (!o || !o.g) return false;
+      energy = (o.e != null) ? o.e : 500;
+      coins = o.c || 0;
+      speedTier = Math.min(o.s || 0, SPEED_TIERS.length - 1);
+      caught = o.ca || 0;
+      selectedGrade = o.g;
+      return true;
+    } catch (e) { return false; }
+  }
+
   function pickGrade(g) {
     unlockAudio();
     selectedGrade = g;
@@ -341,7 +365,8 @@
     if ($('gradeLabel')) $('gradeLabel').textContent = L;
     $('startScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
-    drawCount(0);   // 시작 시 도트매트릭스 0 표시
+    drawCount(caught);   // 도트매트릭스에 현재 잡힌 횟수 표시(이어하기 시 유지)
+    saveState();
   }
 
   function init() {
@@ -369,6 +394,7 @@
     $('probClose').addEventListener('click', () => $('repairModal').classList.add('hidden'));
     $('resetBtn').addEventListener('click', () => {
       caught = 0; energy = 500; coins = 0; speedTier = 0;
+      clearState();   // 새 판 = 저장된 진행 삭제(다음 학생은 처음부터)
       $('caughtVal').textContent = 0; updateEnergyUI(); drawCount(0); toast('새 판 시작!');
     });
 
@@ -388,8 +414,19 @@
       else toast('실기(APK)에서만 블루투스 설정을 열 수 있어요');
     });
 
-    window.addEventListener('blur', () => intent.drive = 0);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) intent.drive = 0; });
+    window.addEventListener('blur', () => { intent.drive = 0; saveState(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { intent.drive = 0; saveState(); } });
+
+    // 저장된 진행이 있으면 이어서(에너지·코인·속도업 유지). 없으면 학년 선택 화면.
+    if (restoreState()) {
+      const L = window.AltinoProblems.GRADE_LABELS[selectedGrade] || selectedGrade;
+      if ($('gradeLabel')) $('gradeLabel').textContent = L;
+      $('startScreen').classList.add('hidden');
+      $('gameScreen').classList.remove('hidden');
+      $('caughtVal').textContent = caught;
+      drawCount(caught);
+      toast('이어서 진행! ⚡ 에너지·코인 유지 (새 판은 아래 버튼)');
+    }
 
     updateEnergyUI();
     startStream();                       // 게임 루프는 항상 가동(연결 전에도 UI 동작), 전송은 연결 시에만
