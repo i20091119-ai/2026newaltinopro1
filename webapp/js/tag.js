@@ -268,6 +268,7 @@
       'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜주세요',
       'error:permission': '블루투스 권한 필요', 'error:no-paired-device': '페어링된 기기 없음',
       'error:connect-failed': '연결 실패(다시 시도)', 'error:bad-address': '잘못된 주소',
+      'error:location-off': '태블릿 위치(Location)를 켜주세요 — 스캔에 필요', 'error:give-up': '연결 실패 — 다시 선택',
     };
     return m[s] || s.replace('error:', '');
   }

@@ -482,7 +482,7 @@
 
   // ---- 연결 ----
   function connErr(s) {
-    const m = { 'error:no-bound': '로봇을 먼저 선택', 'error:bad-address': '잘못된 주소', 'error:give-up': '연결 실패 — 다시 선택', 'error:no-uart-char': 'UART 특성 없음', 'error:notify-failed': '알림 설정 실패', 'error:busy': '연결 중(스캔 불가)', 'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜세요', 'error:scan-failed': '스캔 실패' };
+    const m = { 'error:no-bound': '로봇을 먼저 선택', 'error:bad-address': '잘못된 주소', 'error:give-up': '연결 실패 — 다시 선택', 'error:no-uart-char': 'UART 특성 없음', 'error:notify-failed': '알림 설정 실패', 'error:busy': '연결 중(스캔 불가)', 'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜세요', 'error:location-off': '태블릿 위치(Location)를 켜주세요 — 스캔에 필요', 'error:scan-failed': '스캔 실패' };
     return m[s] || s.replace('error:', '');
   }
   function wireNative(t) {   // 상태/데이터 핸들러 (상태는 'base:detail' 형식 → base로 판별)

@@ -12,14 +12,13 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.location.LocationManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
@@ -88,11 +87,9 @@ class AltinoBle(
     private var scanner: BluetoothLeScanner? = null
     private var scanCb: ScanCallback? = null
     @Volatile private var scanning = false
-    @Volatile private var scanFiltered = false
     private var lastScanStart = 0L
     private val seen = HashSet<String>()
     private val scanStopRunnable = Runnable { stopScan() }
-    private val scanFallbackRunnable = Runnable { if (scanning && scanFiltered && seen.isEmpty()) restartScanUnfiltered() }
 
     // ---- 연결/큐 ----
     private var gatt: BluetoothGatt? = null
@@ -131,16 +128,32 @@ class AltinoBle(
         lastScanStart = now
         stopScan()
         seen.clear()
-        // 바인딩된(이전 선택) 로봇을 목록 맨 위에 먼저 노출
+        // 위치(Location) 서비스 꺼져 있으면 많은 기기에서 BLE 스캔이 0건 → 경고(스캔은 계속 시도)
+        if (!isLocationOn()) status("error:location-off")
+        // 바인딩된(이전 선택) 로봇 먼저 노출
         boundAddress?.let { if (seen.add(it)) pushScan(boundName ?: "", it, 0) }
-        beginScan(filtered = true)
+        // 페어링된(본딩된) 알티노도 목록에 노출 — 지금 광고 안 해도(다른 태블릿 연결 등) 주소로 시도 가능
+        try {
+            adapter?.bondedDevices?.forEach { d ->
+                val up = (try { d.name } catch (e: Exception) { null } ?: "").uppercase()
+                if (NAME_PREFIXES.any { up.startsWith(it) } && seen.add(d.address)) pushScan(d.name ?: "", d.address, -90)
+            }
+        } catch (e: Exception) {}
+        beginScan()
+    }
+
+    private fun isLocationOn(): Boolean {
+        return try {
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return true
+            if (Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled
+            else lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        } catch (e: Exception) { true }
     }
 
     @SuppressLint("MissingPermission")
-    private fun beginScan(filtered: Boolean) {
+    private fun beginScan() {
         val a = adapter ?: return
         scanner = a.bluetoothLeScanner ?: return status("error:no-scanner")
-        scanFiltered = filtered
         val cb = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) { handle(result) }
             override fun onBatchScanResults(results: MutableList<ScanResult>) { results.forEach { handle(it) } }
@@ -149,43 +162,32 @@ class AltinoBle(
                 val d = r.device ?: return
                 val addr = d.address ?: return
                 val name = try { d.name } catch (e: SecurityException) { null } ?: r.scanRecord?.deviceName ?: ""
-                // UUID 필터로 온 결과는 이미 알티노 → 이름 무관 수용. 무필터 폴백일 땐 이름 접두 필터.
-                if (!scanFiltered) {
-                    val up = name.uppercase()
-                    if (NAME_PREFIXES.none { up.startsWith(it) }) return
-                }
+                // 필터 없이 스캔하고 '이름 접두'로 거른다 → 서비스UUID를 광고에 안 실은 로봇도 발견(핵심 수정).
+                val up = name.uppercase()
+                if (NAME_PREFIXES.none { up.startsWith(it) }) return
                 if (!seen.add(addr)) return
                 pushScan(name, addr, r.rssi)
             }
         }
         scanCb = cb
         scanning = true
-        val filters = if (filtered) listOf(ScanFilter.Builder().setServiceUuid(ParcelUuid(SVC_UART)).build()) else null
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)         // LOW_LATENCY 금지(전파 혼잡 주범)
             .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
             .setReportDelay(0)
             .build()
         try {
-            scanner?.startScan(filters, settings, cb)
+            scanner?.startScan(null, settings, cb)               // 필터 null: 모든 광고 수신 후 이름으로 선별
             status("scanning")
             main.removeCallbacks(scanStopRunnable); main.postDelayed(scanStopRunnable, SCAN_MS)
-            if (filtered) { main.removeCallbacks(scanFallbackRunnable); main.postDelayed(scanFallbackRunnable, 3_000L) }
         } catch (e: Exception) { Log.e(TAG, "startScan", e); status("error:scan-failed") }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun restartScanUnfiltered() {
-        try { scanCb?.let { scanner?.stopScan(it) } } catch (e: Exception) {}
-        scanCb = null
-        beginScan(filtered = false)   // 로봇이 서비스UUID를 광고에 안 실은 경우 이름 필터로 폴백
     }
 
     @SuppressLint("MissingPermission")
     @JavascriptInterface
     fun stopScan() {
         scanning = false
-        main.removeCallbacks(scanStopRunnable); main.removeCallbacks(scanFallbackRunnable)
+        main.removeCallbacks(scanStopRunnable)
         try { scanCb?.let { scanner?.stopScan(it) } } catch (e: Exception) {}
         scanCb = null
     }
