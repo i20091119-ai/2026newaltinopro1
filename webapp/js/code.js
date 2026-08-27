@@ -510,8 +510,8 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <h2 style="margin:0">🔗 알티노 연결 <span style="font-size:.9rem;color:var(--mut)">(페어링 필요 없어요)</span></h2>
           <button id="scanClose" class="btn ghost" style="padding:6px 12px">닫기</button></div>
-        <p class="lead" style="margin:0 0 8px">차 몸체 스티커의 <b>⟨뒤 4자리⟩</b>를 찾아 탭하세요. 한 번 고르면 <b>그 차에만</b> 연결/재연결돼요(다른 차에 안 붙음).</p>
-        <input id="scanSearch" type="text" placeholder="뒤 4자리로 검색 (예: 3FA2)" style="width:100%;margin-bottom:8px">
+        <p class="lead" style="margin:0 0 8px">차 바닥 스티커의 <b>Bluetooth No.</b>(예: <b>BF16</b>)를 찾아 탭하세요. 한 번 고르면 <b>그 차에만</b> 연결/재연결돼요(다른 차에 안 붙음).</p>
+        <input id="scanSearch" type="text" placeholder="번호로 검색 (예: BF16)" style="width:100%;margin-bottom:8px">
         <div id="scanList"><p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p></div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="scanSettings" class="btn ghost">📶 블루투스 설정</button><button id="scanUnbind" class="btn ghost">🔓 이 태블릿 짝 해제</button></div></div>`;
       document.body.appendChild(ov);
@@ -537,15 +537,24 @@
     list.innerHTML = '';
     devs.forEach((d, i) => {
       const b = document.createElement('button'); b.className = 'btn ghost'; b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px';
-      const tag4 = mac4(d.address);
+      const code = stickerCode(d.name, d.address);
       const near = i === 0 && d.rssi ? ' <span style="color:var(--mint);font-size:.8rem">· 가장 가까움</span>' : '';
       const isBound = d.address === bound ? ' <span style="color:var(--sun);font-size:.8rem">· 이전 선택</span>' : '';
-      b.innerHTML = `🚗 <b style="font-size:1.35rem">⟨${tag4}⟩</b> <span style="font-size:1rem">${d.name || '(이름없음)'}</span>${near}${isBound}<br><span style="font-size:.8rem;color:var(--mut)">${d.address}</span>`;
+      b.innerHTML = `🚗 <b style="font-size:1.5rem;color:var(--blue)">⟨${code}⟩</b>${near}${isBound}<br><span style="font-size:.75rem;color:var(--mut)">${d.name || ''} · ${d.address}</span>`;
       b.onclick = () => { stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address); };
       list.appendChild(b);
     });
   }
-  function mac4(addr) { const h = String(addr || '').replace(/:/g, ''); return h.slice(-4).toUpperCase(); } // 로봇 몸체 스티커와 대조할 뒤 4자리
+  function mac4(addr) { const h = String(addr || '').replace(/:/g, ''); return h.slice(-4).toUpperCase(); }
+  // 로봇 몸체 'Bluetooth No.'(예: BF16)는 BLE 이름에 들어있음(ALTINO-NBF16). 모델 접두를 떼서 그 번호를 뽑음.
+  function stickerCode(name, addr) {
+    const up = String(name || '').toUpperCase().trim();
+    const PRE = ['ALTINO-NEO-', 'ALTINO-NEO', 'ALTINO-LITE-', 'ALTINO-LITE', 'ALTINO-N', 'ALTINO-L', 'ALTINO-', 'ALTINO', 'SMARTFARM-', 'SMARTFARM', 'REALFARM-', 'REALFARM'];
+    let c = up;
+    for (const p of PRE) if (up.startsWith(p)) { c = up.slice(p.length); break; }
+    c = c.replace(/^[\-\s_]+/, '');
+    return /^[A-Z0-9]{2,8}$/.test(c) ? c : mac4(addr);  // 못 뽑으면 MAC 뒤 4자리로 폴백
+  }
 
   // ---- 🔬 센서 점검 오버레이 (측면센서 작동 확인용) ----
   // 각 센서 앞에 손을 대보며 숫자가 변하는지 확인 → '반응함' 뱃지. 측면(ir4/ir5)이 안 변하면 그 로봇은 측면센서 문제.
@@ -654,6 +663,14 @@
     restoreCal();
     // 센서 점검
     if ($('sensorTest')) $('sensorTest').onclick = openSensorTest;
+    // 🔧 관리자 뒷문: 스텝바 끝 빈칸을 1.5초 안에 5번 빠르게 터치 → 바로 ⑥ 주행 테스트로
+    const gate = $('adminGate');
+    if (gate) {
+      let taps = [];
+      const hit = (e) => { e.preventDefault(); const now = Date.now(); taps = taps.filter(t => now - t < 1500); taps.push(now);
+        if (taps.length >= 5) { taps = []; go(6); toast('🔧 관리자: 주행 테스트'); } };
+      gate.addEventListener('click', hit); gate.addEventListener('touchstart', hit, { passive: false });
+    }
     // 연결
     $('connBtn').onclick = () => { if (T.AndroidBridgeTransport.supported) pickAndConnect(); else connect('mock'); };
     $('btSettings').onclick = () => { if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings(); else toast('실기(APK)에서만 열려요'); };

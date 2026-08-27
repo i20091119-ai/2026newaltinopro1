@@ -16,7 +16,7 @@
   const SECONDS_PER_SOLVE = 30;        // 문제 1개로 달릴 수 있는 시간(초)
   const GAIN_PER_SOLVE = 500;          // 문제 1개 정답 시 충전
   const DRAIN_PER_SEC = GAIN_PER_SOLVE / SECONDS_PER_SOLVE; // ≈16.7/초 → 1문제 = 30초
-  const ENERGY_MAX = 2000;             // 최대 저장 = 문제 4개치(약 120초)
+  const ENERGY_MAX = 3000;             // 최대 저장 = 문제 6개치(약 180초)
   const CAUGHT_PENALTY = 100;          // 뒤에 붙잡히면 감소(약 6초치)
   let energy = 500;                    // 시작 = 문제 1개치(30초)
 
@@ -183,8 +183,9 @@
   };
   function stampDigit(d, baseCol) {           // baseCol=시작 열(1..), 행은 2..6
     const g = DIGITS[d]; if (!g) return;
+    // 180° 회전: (col,row) → (9-col, 9-row). 반대편에서 봐도 숫자가 바로 보이게(두 자리 순서도 함께 뒤집힘).
     for (let dr = 0; dr < 5; dr++) for (let dc = 0; dc < 3; dc++)
-      if (g[dr][dc] === '1') state.dotOn(baseCol + dc, 2 + dr);
+      if (g[dr][dc] === '1') state.dotOn(9 - (baseCol + dc), 9 - (2 + dr));
   }
   function drawCount(n) {
     state.dotClear(); state.displayMode = 0xFF; state.dot.fill(0);
@@ -299,17 +300,26 @@
       const bars = d.rssi ? (d.rssi > -60 ? '📶' : d.rssi > -80 ? '📶' : '·') : '';
       const near = i === 0 && d.rssi ? ' <span style="color:#37c9ad;font-size:.8rem">· 가장 가까움</span>' : '';
       const isBound = d.address === bound ? ' <span style="color:#ffb23e;font-size:.8rem">· 이전 선택</span>' : '';
-      b.innerHTML = `🚗 <b style="font-size:1.35rem">⟨${mac4(d.address)}⟩</b> <span style="font-size:.95rem">${d.name || '(이름없음)'}</span> ${bars}${near}${isBound}<br><span style="font-size:.8rem;color:#9b8f86">${d.address}</span>`;
+      b.innerHTML = `🚗 <b style="font-size:1.5rem;color:#5ea0ff">⟨${stickerCode(d.name, d.address)}⟩</b> ${bars}${near}${isBound}<br><span style="font-size:.75rem;color:#9b8f86">${d.name || ''} · ${d.address}</span>`;
       b.onclick = () => { stopScanning(); connect('native', d.address); closeConn(); };
       list.appendChild(b);
     });
   }
   function mac4(addr) { const h = String(addr || '').replace(/:/g, ''); return h.slice(-4).toUpperCase(); }
+  // 로봇 'Bluetooth No.'(예: BF16)는 BLE 이름에 들어있음(ALTINO-NBF16). 모델 접두 제거해 그 번호 추출.
+  function stickerCode(name, addr) {
+    const up = String(name || '').toUpperCase().trim();
+    const PRE = ['ALTINO-NEO-', 'ALTINO-NEO', 'ALTINO-LITE-', 'ALTINO-LITE', 'ALTINO-N', 'ALTINO-L', 'ALTINO-', 'ALTINO', 'SMARTFARM-', 'SMARTFARM', 'REALFARM-', 'REALFARM'];
+    let c = up;
+    for (const p of PRE) if (up.startsWith(p)) { c = up.slice(p.length); break; }
+    c = c.replace(/^[\-\s_]+/, '');
+    return /^[A-Z0-9]{2,8}$/.test(c) ? c : mac4(addr);
+  }
   function openConn() {
     const hint = $('connHint');
     allDevs = [];
     if (T.AndroidBridgeTransport.supported) {
-      hint.innerHTML = '차 몸체 <b>⟨뒤 4자리⟩</b>로 찾아 탭하세요. 한 번 고르면 <b>그 차에만</b> 연결돼요. <b>페어링 필요 없어요!</b>';
+      hint.innerHTML = '차 바닥 스티커 <b>Bluetooth No.</b>(예: <b>BF16</b>)로 찾아 탭하세요. 한 번 고르면 <b>그 차에만</b> 연결돼요. <b>페어링 필요 없어요!</b>';
       startScanning();
     } else {
       hint.textContent = '브라우저에서는 실제 블루투스가 안 돼요. 데모(목)로 UI를 테스트하세요.';
