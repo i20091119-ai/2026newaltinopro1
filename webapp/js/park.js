@@ -156,10 +156,11 @@
         <p class="lead" style="margin:0 0 8px">차 바닥 스티커 번호(예: <b>BD77</b>)를 찾아 탭하세요.</p>
         <input id="scanSearch" type="text" placeholder="번호로 검색 (예: BD77)" style="width:100%;margin-bottom:8px;font-size:1.1rem;padding:10px 12px;border-radius:12px;border:2px solid var(--line);text-align:center">
         <div id="scanList"><p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p></div>
-        <div style="margin-top:10px;display:flex;gap:8px"><button id="scanSettings" class="btn ghost">📶 블루투스 설정</button></div></div>`;
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="scanSettings" class="btn ghost">📶 블루투스 설정</button><button id="scanUnbind" class="btn ghost">🔓 이 태블릿 짝 해제</button></div></div>`;
       document.body.appendChild(ov);
       ov.querySelector('#scanClose').onclick = () => { stopScanning(); ov.classList.add('hidden'); };
       ov.querySelector('#scanSettings').onclick = () => { try { new T.AndroidBridgeTransport().openSettings(); } catch (e) {} };
+      ov.querySelector('#scanUnbind').onclick = () => { try { new T.AndroidBridgeTransport().unbind(); } catch (e) {} toast('짝 해제됨 — 새 로봇을 고르세요'); renderScan(); };
       ov.querySelector('#scanSearch').addEventListener('input', renderScan);
     }
     ov.classList.remove('hidden');
@@ -175,11 +176,19 @@
     const devs = scanDevs.filter(d => !q || (d.name || '').toLowerCase().includes(q) || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
     if (!devs.length) { list.innerHTML = '<p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
     devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
+    const boundSt = new T.AndroidBridgeTransport().state();
+    const bound = boundSt.address || '';
     list.innerHTML = '';
     devs.forEach(d => {
       const b = document.createElement('button'); b.className = 'btn ghost'; b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px';
-      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b><br><span style="font-size:.85rem;color:var(--mut)">${d.address}</span>`;
-      b.onclick = () => { stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address); };
+      const locked = bound && d.address !== bound;
+      const tag = d.address === bound ? ' <span style="color:var(--sun,#ffb23e);font-size:.8rem">· 내 짝 ✓</span>' : (locked ? ' <span style="color:var(--mut);font-size:.8rem">· 🔒 짝 해제 필요</span>' : '');
+      b.innerHTML = `🚗 <b style="font-size:1.15rem">${d.name || '(이름없음)'}</b>${tag}<br><span style="font-size:.85rem;color:var(--mut)">${d.address}</span>`;
+      if (locked) b.style.opacity = '.5';
+      b.onclick = () => {
+        if (bound && d.address !== bound) { toast('이 태블릿은 이미 짝이 있어요 · [🔓 짝 해제] 먼저 누르세요'); return; }
+        stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address);
+      };
       list.appendChild(b);
     });
   }

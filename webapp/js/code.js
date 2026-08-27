@@ -548,15 +548,24 @@
     const devs = scanDevs.filter(d => !q || (d.name || '').toLowerCase().includes(q) || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
     if (!devs.length) { list.innerHTML = '<p class="lead">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
     devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
-    const bound = (new T.AndroidBridgeTransport().state().address || '');
+    const boundSt = new T.AndroidBridgeTransport().state();
+    const bound = boundSt.address || '';
     list.innerHTML = '';
     devs.forEach((d, i) => {
       const b = document.createElement('button'); b.className = 'btn ghost'; b.style.cssText = 'display:block;width:100%;text-align:left;margin-bottom:8px';
       const code = stickerCode(d.name, d.address);
       const near = i === 0 && d.rssi ? ' <span style="color:var(--mint);font-size:.8rem">· 가장 가까움</span>' : '';
-      const isBound = d.address === bound ? ' <span style="color:var(--sun);font-size:.8rem">· 이전 선택</span>' : '';
+      const locked = bound && d.address !== bound;   // 이미 짝이 있는데 다른 로봇 → 잠금
+      const isBound = d.address === bound ? ' <span style="color:var(--sun);font-size:.8rem">· 내 짝 ✓</span>' : (locked ? ' <span style="color:var(--mut);font-size:.8rem">· 🔒 짝 해제 필요</span>' : '');
       b.innerHTML = `🚗 <b style="font-size:1.5rem;color:var(--blue)">⟨${code}⟩</b>${near}${isBound}<br><span style="font-size:.75rem;color:var(--mut)">${d.name || ''} · ${d.address}</span>`;
-      b.onclick = () => { stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address); };
+      if (locked) b.style.opacity = '.5';
+      b.onclick = () => {
+        if (bound && d.address !== bound) {   // 짝 잠금: 다른 로봇에 실수로 안 붙게
+          toast('이 태블릿은 ⟨' + stickerCode(boundSt.name, bound) + '⟩과 짝이에요 — 바꾸려면 아래 [🔓 짝 해제]를 먼저 누르세요');
+          return;
+        }
+        stopScanning(); $('scanOverlay').classList.add('hidden'); connect('native', d.address);
+      };
       list.appendChild(b);
     });
   }

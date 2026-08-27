@@ -300,15 +300,21 @@
       || (d.address || '').toLowerCase().replace(/:/g, '').includes(q.replace(/:/g, '')));
     if (!devs.length) { list.innerHTML = '<p class="cap">🔍 주변 알티노를 찾는 중… 차 전원을 켜주세요.</p>'; return; }
     devs.sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
-    const bound = (new T.AndroidBridgeTransport().state().address || '');
+    const boundSt = new T.AndroidBridgeTransport().state();
+    const bound = boundSt.address || '';
     devs.forEach((d, i) => {
       const b = document.createElement('button');
       b.className = 'btn ghost'; b.style.textAlign = 'left';
       const bars = d.rssi ? (d.rssi > -60 ? '📶' : d.rssi > -80 ? '📶' : '·') : '';
       const near = i === 0 && d.rssi ? ' <span style="color:#37c9ad;font-size:.8rem">· 가장 가까움</span>' : '';
-      const isBound = d.address === bound ? ' <span style="color:#ffb23e;font-size:.8rem">· 이전 선택</span>' : '';
+      const locked = bound && d.address !== bound;
+      const isBound = d.address === bound ? ' <span style="color:#ffb23e;font-size:.8rem">· 내 짝 ✓</span>' : (locked ? ' <span style="color:#9b8f86;font-size:.8rem">· 🔒 짝 해제 필요</span>' : '');
       b.innerHTML = `🚗 <b style="font-size:1.5rem;color:#5ea0ff">⟨${stickerCode(d.name, d.address)}⟩</b> ${bars}${near}${isBound}<br><span style="font-size:.75rem;color:#9b8f86">${d.name || ''} · ${d.address}</span>`;
-      b.onclick = () => { stopScanning(); connect('native', d.address); closeConn(); };
+      if (locked) b.style.opacity = '.5';
+      b.onclick = () => {
+        if (bound && d.address !== bound) { toast('⟨' + stickerCode(boundSt.name, bound) + '⟩과 짝이에요 · [🔓 짝 해제] 먼저'); return; }
+        stopScanning(); connect('native', d.address); closeConn();
+      };
       list.appendChild(b);
     });
   }
@@ -411,6 +417,10 @@
     $('connRefresh').addEventListener('click', openConn);
     $('connMock').addEventListener('click', () => { connect('mock'); closeConn(); });
     $('connDisc').addEventListener('click', () => { disconnect(); openConn(); });
+    $('connUnbind') && $('connUnbind').addEventListener('click', () => {
+      try { new T.AndroidBridgeTransport().unbind(); } catch (e) {}
+      disconnect(); toast('짝 해제됨 — 새 로봇을 고르세요'); renderDevList();
+    });
     $('devSearch').addEventListener('input', renderDevList);
     $('connSettings').addEventListener('click', () => {
       if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings();
