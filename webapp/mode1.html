@@ -89,7 +89,7 @@
   <div class="topbar">
     <a href="home.html">← 홈</a>
     <div class="stepper">
-      <span class="dot-step">1 빛</span><span class="dot-step">2 암호</span><span class="dot-step">3 소리</span><span class="dot-step">4 배송지</span><span class="dot-step">5 조립</span><span class="dot-step">6 실행</span><span id="adminGate" title="" style="display:inline-block;width:30px;height:26px;cursor:default"></span>
+      <span class="dot-step">1 빛</span><span class="dot-step">2 암호</span><span class="dot-step">3 소리</span><span class="dot-step">4 배송지</span><span class="dot-step">5 조립</span><span class="dot-step">6 실행</span>
     </div>
     <div class="row">
       <span class="chip">🔆<b id="cdsNow">–</b> · TOF <b id="tofNow">–</b> · 옆 <b id="sideNow">–</b></span>
@@ -225,6 +225,10 @@
     <div style="font-size:1.6rem;margin-bottom:8px">📦 배송 완료!</div>
     <div id="arriveLetter" style="font-size:46vh;font-weight:800;line-height:1;color:var(--sun)">N</div>
     <div id="arriveName" style="font-size:1.4rem;margin-top:8px"></div>
+  </div>
+  <!-- 🔧 관리자 뒷문: 화면 '왼쪽 아래 모서리'의 세로 띠(버튼 영역 왼쪽, 겹침 없음)를 1.5초 안에 5번 터치 → 바로 ⑥ 주행 테스트 -->
+  <div id="adminGate" style="position:fixed;left:0;bottom:0;width:30px;height:120px;z-index:26;background:transparent">
+    <span style="position:absolute;left:5px;bottom:6px;width:7px;height:7px;border-radius:50%;background:rgba(150,140,130,.28)"></span>
   </div>
   <div id="toast"></div>
   <script src="js/protocol.js"></script>
