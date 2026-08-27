@@ -14,7 +14,10 @@ import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.location.LocationManager
 import android.os.Build
 import android.os.Handler
@@ -76,6 +79,7 @@ class AltinoBle(
         private const val SCAN_MIN_GAP = 6_000L  // startScan 최소 간격(30초/5회 스로틀 회피)
         private const val CLOSE_SETTLE_MS = 600L // close 후 재연결 최소 대기
         private const val OP_TIMEOUT_MS = 2_000L
+        @Volatile private var receiverRegistered = false   // 액티비티 재생성 시 중복 등록 방지
     }
 
     private val adapter: BluetoothAdapter? = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -114,6 +118,56 @@ class AltinoBle(
     private var busy = false
     private var pendingFrame: ByteArray? = null
     private val watchdog = Runnable { Log.w(TAG, "op timeout → skip"); synchronized(this) { busy = false; pump() } }
+
+    // ---- 좀비(반열림) 링크 감지 ----
+    // '연결됨'인데 로봇이 실제론 죽은 상태(전파 간섭·로봇 리셋)를 OS 타임아웃보다 먼저 잡는다.
+    // 우리가 프레임을 계속 보내는 중(≤4초 내 송신)인데 8초 넘게 수신(notify)이 없으면 죽은 링크로 판정.
+    @Volatile private var lastRxAt = 0L
+    @Volatile private var lastTxAt = 0L
+    private val liveness = object : Runnable {
+        override fun run() {
+            if (!isConnected) return
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastTxAt < 4_000L && now - lastRxAt > 8_000L) {
+                Log.w(TAG, "stale link (tx ok, no rx 8s) → force reconnect")
+                isConnected = false
+                closeGatt()
+                status("disconnected:stale")
+                scheduleReconnect()
+                return
+            }
+            main.postDelayed(this, 3_000L)
+        }
+    }
+
+    init {
+        // 블루투스 어댑터 꺼짐/켜짐 감시 — 현장에서 'BT 껐다 켜기' 응급조치를 해도 앱이 스스로 복구.
+        if (!receiverRegistered) {
+            receiverRegistered = true
+            try {
+                context.registerReceiver(object : BroadcastReceiver() {
+                    override fun onReceive(c: Context?, i: Intent?) {
+                        when (i?.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
+                            BluetoothAdapter.STATE_OFF -> {
+                                isConnected = false
+                                closeGatt()
+                                status("error:bluetooth-off")
+                            }
+                            BluetoothAdapter.STATE_ON -> {
+                                if (wantConnect && boundAddress != null) {
+                                    reconnectAttempts = 0
+                                    status("reconnecting:1")
+                                    main.postDelayed({
+                                        if (wantConnect && !isConnected) boundAddress?.let { openConnection(it, false) }
+                                    }, 1_200L)   // 어댑터 안정화 대기
+                                }
+                            }
+                        }
+                    }
+                }, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+            } catch (e: Exception) { Log.e(TAG, "bt receiver", e) }
+        }
+    }
 
     // ======================= 스캔 =======================
     @SuppressLint("MissingPermission")
@@ -270,14 +324,14 @@ class AltinoBle(
                     enqueue(Op.Descriptor(d, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE))
                 } else {
                     // CCCD 없으면 알림만 켜고 바로 연결 확정
-                    reconnectAttempts = 0; isConnected = true; status("connected")
+                    reconnectAttempts = 0; isConnected = true; onLinkUp(); status("connected")
                 }
             } catch (e: Exception) { Log.e(TAG, "enable notify", e); status("error:notify-failed") }
             opDone()
         }
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, statusCode: Int) {
             if (statusCode == BluetoothGatt.GATT_SUCCESS) {
-                reconnectAttempts = 0; isConnected = true; status("connected")   // ★ 여기서 connected
+                reconnectAttempts = 0; isConnected = true; onLinkUp(); status("connected")   // ★ 여기서 connected
             } else status("error:notify-failed")
             opDone()
         }
@@ -294,8 +348,17 @@ class AltinoBle(
 
     private fun emitData(v: ByteArray?) {
         val bytes = v ?: return
+        lastRxAt = SystemClock.elapsedRealtime()
         val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         postToJs("window.__altinoOnData && window.__altinoOnData('$b64');")
+    }
+
+    /** 연결 확정 직후: 좀비링크 감시 시작(타임스탬프 초기화). */
+    private fun onLinkUp() {
+        val now = SystemClock.elapsedRealtime()
+        lastRxAt = now; lastTxAt = 0L
+        main.removeCallbacks(liveness)
+        main.postDelayed(liveness, 3_000L)
     }
 
     private fun pickCharacteristics(g: BluetoothGatt) {
@@ -385,6 +448,7 @@ class AltinoBle(
     @JavascriptInterface
     fun sendFrame(b64: String): Boolean {
         val data = try { Base64.decode(b64, Base64.DEFAULT) } catch (e: Exception) { return false }
+        lastTxAt = SystemClock.elapsedRealtime()
         synchronized(this) {
             if (gatt == null || writeCh == null || !isConnected) return false
             if (busy || ops.isNotEmpty()) { pendingFrame = data; return true }  // 미완료 → 슬롯 덮어쓰기
@@ -461,6 +525,7 @@ class AltinoBle(
         lastCloseAt = SystemClock.elapsedRealtime()
         synchronized(this) { ops.clear(); busy = false; pendingFrame = null }
         main.removeCallbacks(watchdog)
+        main.removeCallbacks(liveness)
     }
 
     private fun status(s: String) {
