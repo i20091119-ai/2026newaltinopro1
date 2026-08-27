@@ -4,88 +4,144 @@
   @font-face{font-family:'Esamanru';src:url('esamanru-medium.woff2') format('woff2');font-weight:500}
   @font-face{font-family:'Esamanru';src:url('esamanru-bold.woff2') format('woff2');font-weight:700}
   @font-face{font-family:'Esamanru';src:url('esamanru-light.woff2') format('woff2');font-weight:300}
-  @page{size:A4;margin:14mm 11mm 8mm 11mm}
+  @page{size:A4;margin:8mm 9mm 5mm 9mm}
   *{box-sizing:border-box}
-  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0;font-size:12.8px}
-  h1{font-weight:700;font-size:22px;margin:0}
-  .sub{color:#9b8f86;font-weight:300;font-size:12px;margin:2px 0 10px}
-  .story{background:linear-gradient(180deg,#fff3e0,#fff);border:2px solid #ffe0a3;border-radius:12px;padding:9px 13px;font-size:12.5px;line-height:1.55;margin-bottom:9px}
-  .step{border:2px solid #f0e6d8;border-radius:13px;padding:9px 14px;margin-bottom:8px;page-break-inside:avoid}
-  .step h2{font-size:13.5px;margin:0 0 6px;color:#fff;display:inline-block;padding:2px 11px;border-radius:8px}
-  .s1 h2{background:#5ea0ff}.s2 h2{background:#37c9ad}.s3 h2{background:#ffb23e;color:#5a3200}.s4 h2{background:#ff7a86}.s5 h2{background:#b085ff}
-  .blank{display:inline-block;min-width:72px;border-bottom:2.5px solid #3a3230;text-align:center;font-weight:700;color:#b085ff;height:21px;vertical-align:bottom}
-  .blank.w{min-width:110px}.blank.s{min-width:42px}
-  .bigbox{display:inline-block;border:2.5px solid #37c9ad;border-radius:10px;min-width:96px;height:36px;vertical-align:middle;background:#effbf6;margin-left:5px}
+  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0;font-size:11.3px;line-height:1.4}
   b{font-weight:700}
-  .hint{background:#f6fbff;border:1px solid #d3e8ff;border-radius:8px;padding:5px 10px;font-size:11.3px;margin-top:6px;color:#5578a8}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;line-height:2.15}
-  table{border-collapse:collapse;font-size:12.5px;margin:4px 0}
-  th,td{border:1.5px solid #e8dcc8;padding:3.2px 13px;text-align:center}th{background:#fff3e0;color:#9b8f86}
-  .blocks{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  /* 헤더 */
+  .head{display:flex;align-items:center;gap:14px}
+  .head h1{font-weight:700;font-size:19.5px;margin:0;white-space:nowrap}
+  .head .sub{color:#9b8f86;font-weight:300;font-size:11px;margin:1px 0 0;white-space:nowrap}
+  .head .id{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
+  .idbox{border:2px solid #e8dcc8;border-radius:9px;padding:3px 9px;font-size:10.5px;color:#7a6f66;white-space:nowrap}
+  .idbox b{color:#5ea0ff}
+  .u{display:inline-block;border-bottom:2px solid #b7a89a;min-width:32px;height:14px;vertical-align:bottom}
+  /* 스텝 리본 */
+  .ribbon{display:flex;gap:5px;margin:5px 0 6px}
+  .ribbon span{flex:1;text-align:center;font-size:10px;font-weight:700;color:#fff;border-radius:7px;padding:2.5px 0}
+  .r1{background:#5ea0ff}.r2{background:#37c9ad}.r3{background:#ffb23e;color:#5a3200}.r4{background:#ff7a86}.r5{background:#b085ff}.r6{background:#7ac77a}.rB{background:#e6a900}
+  /* 서사 */
+  .story{background:linear-gradient(180deg,#fff3e0,#fff);border:2px solid #ffe0a3;border-radius:11px;padding:6px 11px;font-size:11px;line-height:1.4;margin-bottom:6px}
+  /* 스텝 카드 */
+  .step{border:2px solid #f0e6d8;border-radius:12px;padding:6px 11px;margin-bottom:5px;page-break-inside:avoid;position:relative}
+  .step h2{font-size:12.2px;margin:0 0 3px;color:#fff;display:inline-block;padding:2px 10px;border-radius:8px}
+  .s1 h2{background:#5ea0ff}.s2 h2{background:#37c9ad}.s3 h2{background:#ffb23e;color:#5a3200}.s4 h2{background:#ff7a86}.s5 h2{background:#b085ff}.s6 h2{background:#7ac77a}
+  .step .tag{position:absolute;top:8px;right:11px;font-size:9.5px;color:#b7a89a;font-weight:700}
+  .row{display:flex;gap:7px;align-items:center;flex-wrap:wrap;line-height:1.75}
+  .blank{display:inline-block;min-width:62px;border-bottom:2.4px solid #3a3230;text-align:center;font-weight:700;color:#7a4fd0;height:19px;vertical-align:bottom}
+  .blank.w{min-width:150px}.blank.s{min-width:38px}.blank.xs{min-width:30px}
+  .bigbox{display:inline-block;border:2.4px solid #37c9ad;border-radius:9px;min-width:80px;height:27px;vertical-align:middle;background:#effbf6;margin-left:4px}
+  .bigbox.p{border-color:#b085ff;background:#f6f1ff}.bigbox.c{border-color:#ff7a86;background:#fff2f1}.bigbox.o{border-color:#ffb23e;background:#fff8ec}
+  .hint{background:#f6fbff;border:1px solid #d3e8ff;border-radius:8px;padding:3.5px 9px;font-size:10.3px;margin-top:4px;color:#5578a8}
+  .work{border:1.6px dashed #cdbfae;border-radius:8px;background:#fffdf8;height:28px;margin-top:3px}
+  .worklab{font-size:9.5px;color:#b7a89a;margin:2px 0 0 2px}
+  table{border-collapse:collapse;font-size:11.3px;margin:3px 0;width:100%}
+  th,td{border:1.5px solid #e8dcc8;padding:2.2px 6px;text-align:center}th{background:#fff3e0;color:#9b8f86}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .two.w46{grid-template-columns:1.05fr .95fr}
+  /* 계이름 */
+  .scale{display:flex;gap:4px;margin-top:3px}
+  .scale span{flex:1;text-align:center;border:1.6px solid #ffe0a3;border-radius:7px;padding:2.5px 0;font-size:10.6px;background:#fff8ec}
+  /* 블록 */
+  .blocks{display:flex;flex-direction:column;gap:4px;margin-top:4px}
   .blockrow{display:flex;align-items:center;gap:8px}
-  .ordbox{width:33px;height:33px;border:2.5px solid #3a3230;border-radius:9px;flex:none;background:#fff}
-  .blk{flex:1;border:2px solid;border-radius:10px;padding:7px 12px;font-size:12.3px}
+  .ordbox{width:27px;height:27px;border:2.4px solid #3a3230;border-radius:8px;flex:none;background:#fff}
+  .blk{flex:1;border:2px solid;border-radius:9px;padding:4px 10px;font-size:11.3px}
   .b-blue{border-color:#bcd8ff;background:#f4faff}.b-mint{border-color:#bdeede;background:#effbf6}
   .b-grape{border-color:#dcc8ff;background:#f8f4ff}.b-sun{border-color:#ffe0a3;background:#fff8ec}.b-coral{border-color:#f6c9c4;background:#fff2f1}
-  .blk .in{display:inline-block;min-width:60px;border-bottom:2px solid #b085ff;text-align:center;height:18px;vertical-align:bottom}
-  .name{font-size:13px;white-space:nowrap}
-  .name .blank{min-width:90px}
-  .foot{color:#9b8f86;font-size:9.5px;font-weight:300;margin-top:5px;text-align:center}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .blk .in{display:inline-block;min-width:52px;border-bottom:2px solid #b085ff;text-align:center;height:16px;vertical-align:bottom}
+  /* 결과 체크 */
+  .chk{display:flex;flex-direction:column;gap:3px;margin-top:2px;font-size:11px}
+  .chk div{display:flex;align-items:center;gap:7px}
+  .box{width:15px;height:15px;border:2px solid #7ac77a;border-radius:4px;flex:none}
+  /* 심화 */
+  .deep{border:2px solid #f0d488;border-radius:12px;padding:6px 11px;background:linear-gradient(180deg,#fffdf3,#fff);page-break-inside:avoid}
+  .deep h2{font-size:12.2px;margin:0 0 3px;color:#5a3200;background:#f2c14e;display:inline-block;padding:2px 10px;border-radius:8px}
+  .deep .form{font-size:11px;margin:2px 0 4px;line-height:1.35}
+  .foot{color:#9b8f86;font-size:9.2px;font-weight:300;margin-top:4px;text-align:center}
 </style></head>
 <body>
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:2px">
-    <div style="flex:1;min-width:0">
-      <h1 style="white-space:nowrap">🚚 알티노 자율배송 — 임무 기록 활동지</h1>
-      <p class="sub" style="margin-bottom:0;white-space:nowrap">경남수학문화관 자율배송 SW체험 · 숫자를 쓰고 → 앱의 블록에 옮겨요!</p>
+  <div class="head">
+    <div>
+      <h1>🚚 알티노 자율배송 — 임무 기록 활동지</h1>
+      <p class="sub">경남수학문화관 · 자율배송 SW체험 · 센서 숫자로 <b>주행 코드의 빈칸</b>을 복구하라!</p>
     </div>
-    <img src="gnmc-logo.png" alt="경남수학문화관" style="height:46px;flex:none" onerror="this.style.display='none'">
-  </div>
-  <div style="height:4px"></div>
-
-  <div class="story">☀️ <b>긴급! 태양풍 경보!</b> GPS와 통신이 교란되어 배송차가 길을 잃었어요. 다행히 이 차는 <b>라이다로 벽을</b>, <b>빛(조도)으로 터널을</b> 볼 수 있어요. 여러분이 센서 숫자로 <b>주행 코드의 빈칸</b>을 복구하면, 차가 스스로 달려 물건을 배송할 수 있습니다!</div>
-
-  <div class="step s1">
-    <h2>① 빛 — 터널 기준 만들기 (센서 수학)</h2>
-    <div class="row">🔆 밝은 곳 조도 = <span class="blank"></span> &nbsp;·&nbsp; 🕳️ 터널 안 조도 = <span class="blank"></span></div>
-    <div class="row">사이값 = ( <span class="blank s"></span> ＋ <span class="blank s"></span> ) ÷ 2 = <b>조도값</b> <span class="bigbox"></span></div>
-    <div class="hint">💡 조도값보다 어두우면 차가 "터널이다!" 하고 알아차려요. 왜 두 값의 <b>사이</b>여야 할까요?</div>
-  </div>
-
-  <div class="step s2">
-    <h2>② 암호 — 주행 코드 복구 (수학 문제)</h2>
-    <div class="row">내가 푼 문제: <span class="blank w" style="min-width:230px"></span></div>
-    <div class="row">정답 = <b>복구 코드</b> <span class="bigbox"></span></div>
-  </div>
-
-  <div class="two">
-    <div class="step s3">
-      <h2>③ 터널 소리 미션</h2>
-      <div class="row">계이름 <span class="blank"></span> · <span class="blank"></span> 를</div>
-      <div class="row"><b>반복</b> <span class="bigbox" style="min-width:70px"></span> 번!</div>
-      <div class="hint">💡 터널을 지날 때 차의 부저가 이 소리를 내요.<br>예) 도·미를 3번! 🎵</div>
-    </div>
-    <div class="step s4">
-      <h2>④ 배송지 문자</h2>
-      <table><tr><th>배송 구역</th><th>문자</th></tr>
-        <tr><td>북부 물류창고</td><td><b>N</b></td></tr><tr><td>동부 집하장</td><td><b>E</b></td></tr>
-        <tr><td>중앙 배송센터</td><td><b>D</b></td></tr><tr><td>서부 터미널</td><td><b>W</b></td></tr><tr><td>남부 보관소</td><td><b>S</b></td></tr></table>
-      <div class="row">오늘의 배송지: <span class="blank"></span> → <b>문자</b> <span class="bigbox" style="min-width:60px"></span></div>
+    <div class="id">
+      <span class="idbox">내 로봇 <b>BF</b><span class="u"></span></span>
+      <span class="idbox">모둠 <span class="u"></span></span>
+      <img src="gnmc-logo.png" alt="경남수학문화관" style="height:42px;flex:none" onerror="this.style.display='none'">
     </div>
   </div>
 
-  <div class="step s5">
-    <h2>⑤ 프로그램 조립 — 실행 순서 정하기 (코딩)</h2>
-    <div>차가 일하는 <b>순서</b>대로 왼쪽 네모에 1~5를 쓰세요. 💡 힌트: <b>달리기 전에 터널 기준부터!</b></div>
+  <div class="ribbon">
+    <span class="r1">①빛</span><span class="r2">②암호</span><span class="r3">③소리</span><span class="r4">④배송지</span><span class="r5">⑤조립</span><span class="r6">⑥출발·결과</span><span class="rB">⭐심화</span>
+  </div>
+
+  <div class="story">☀️ <b>긴급! 태양풍 경보!</b> GPS·통신이 교란되어 배송차가 길을 잃었어요. 이 차는 <b>라이다로 벽을</b>, <b>빛(조도)으로 터널을</b> 봅니다. 여러분이 <b>①~⑤</b>의 빈칸을 채워 주행 코드를 복구하면, 차가 <b>스스로</b> 달려 배송을 완수합니다. 마지막엔 <b>⑥ 결과</b>를 기록하고, 다 끝나면 <b>⭐심화(정밀 주차)</b>에 도전!</div>
+
+  <div class="step s1"><span class="tag">센서 → 수학</span>
+    <h2>① 빛 — 터널 기준 만들기</h2>
+    <div class="row">🔆 밝은 곳 조도 = <span class="blank"></span> &nbsp;·&nbsp; 🕳️ 터널 안 조도 = <span class="blank"></span> &nbsp;&nbsp;→&nbsp;&nbsp; 사이값 = ( <span class="blank s"></span> ＋ <span class="blank s"></span> ) ÷ 2 = <b>조도값</b> <span class="bigbox"></span></div>
+    <div class="hint">💡 <b>조도값</b>보다 어두워지면 차가 “터널이다!”라고 알아차려요. — 왜 두 값의 <b>사이(평균)</b>여야 잘 맞을까요? 한 문장으로: <span class="blank w" style="min-width:330px"></span></div>
+  </div>
+
+  <div class="step s2"><span class="tag">학년별 수학 문제</span>
+    <h2>② 암호 — 주행 코드 복구</h2>
+    <div class="row">내가 푼 문제: <span class="blank" style="min-width:300px"></span> &nbsp; 정답 = <b>복구 코드</b> <span class="bigbox p"></span></div>
+    <div class="worklab">✏️ 계산 과정</div><div class="work"></div>
+  </div>
+
+  <div class="two w46">
+    <div class="step s3"><span class="tag">터널 소리</span>
+      <h2>③ 소리 미션</h2>
+      <div class="row">계이름 <span class="blank s"></span> · <span class="blank s"></span> 를 <b>반복</b> <span class="bigbox o" style="min-width:60px;height:28px"></span> 번</div>
+      <div class="scale"><span>도</span><span>레</span><span>미</span><span>파</span><span>솔</span><span>라</span><span>시</span><span>도</span></div>
+      <div class="hint">🎵 고른 두 계이름에 ○표! 앱의 <b>▶듣기</b>로 소리를 미리 들어봐요. <b>반복은 최대 10번</b>까지.</div>
+    </div>
+    <div class="step s4"><span class="tag">배송 계산 → 문자</span>
+      <h2>④ 배송지 — 문제 풀고 문자 얻기</h2>
+      <div class="row" style="line-height:1.5">🚚 배송 문제를 풀어 <b>상자 수</b>를 구하고, 표에서 <b>문자</b>를 찾아요.</div>
+      <div class="row">상자 수 = <span class="bigbox c" style="min-width:60px;height:28px"></span> → 배송지 문자 = <span class="bigbox" style="min-width:52px;height:28px"></span></div>
+      <table><tr><th>상자 수</th><td>12</td><td>15</td><td>18</td><td>20</td><td>24</td></tr>
+        <tr><th>배송 구역</th><td>북부</td><td>서부</td><td>동부</td><td>남부</td><td>중앙</td></tr>
+        <tr><th>문자</th><td><b>N</b></td><td><b>W</b></td><td><b>E</b></td><td><b>S</b></td><td><b>D</b></td></tr></table>
+    </div>
+  </div>
+
+  <div class="step s5"><span class="tag">아주 약간의 코딩</span>
+    <h2>⑤ 프로그램 조립 — 실행 순서 정하기</h2>
+    <div>차가 일하는 <b>순서</b>대로 왼쪽 네모에 <b>1~5</b>를 쓰고, 활동지 숫자를 빈칸에 옮겨요. 💡 <b>달리기 전에 터널 기준부터!</b></div>
     <div class="blocks">
-      <div class="blockrow"><div class="ordbox"></div><div class="blk b-sun">🎵 터널이면 → 소리 <span class="in"></span>·<span class="in"></span> × <span class="in"></span>번</div></div>
+      <div class="blockrow"><div class="ordbox"></div><div class="blk b-sun">🎵 터널이면 → 소리 <span class="in" style="min-width:32px"></span>·<span class="in" style="min-width:32px"></span> × <span class="in" style="min-width:32px"></span> 번</div></div>
       <div class="blockrow"><div class="ordbox"></div><div class="blk b-blue">🔆 조도값 = <span class="in"></span> — 터널 기준 세우기</div></div>
-      <div class="blockrow"><div class="ordbox"></div><div class="blk b-coral">📦 도착하면 → 문자 <span class="in"></span> 표시</div></div>
+      <div class="blockrow"><div class="ordbox"></div><div class="blk b-coral">📦 도착하면 → 문자 <span class="in" style="min-width:40px"></span> 표시</div></div>
       <div class="blockrow"><div class="ordbox"></div><div class="blk b-mint">🚗 앞으로 간다 · 주행 코드 <span class="in"></span></div></div>
-      <div class="blockrow"><div class="ordbox"></div><div class="blk b-grape">↩️ 앞에 장애물이 있으면 → 방향을 틀어 피해서 간다</div></div>
+      <div class="blockrow"><div class="ordbox"></div><div class="blk b-grape">↩️ 앞에 장애물이 있으면 → 방향을 틀어 피해서 간다 <span style="color:#9b8f86;font-size:10.5px">(값 없음)</span></div></div>
     </div>
-    <div class="hint">✅ 다 썼으면 앱의 <b>⑤조립</b>에서: 활동지의 숫자를 블록 빈칸에 넣고 → 순서대로 배치 → [조립 확인] → 🚚 출발!</div>
+    <div class="hint">✅ 앱의 <b>⑤조립</b>에서 숫자를 넣고 순서대로 배치 → [조립 확인] → <b>⑥ 🚚 출발!</b></div>
   </div>
 
-  <p class="foot">수학SW체험활동 · 경남수학문화관</p>
+  <div class="two w46">
+    <div class="step s6"><span class="tag">출발 후 기록</span>
+      <h2>⑥ 배송 결과 체크</h2>
+      <div class="chk">
+        <div><span class="box"></span> 차가 스스로 <b>벽을 피하며</b> 달렸다</div>
+        <div><span class="box"></span> 터널에서 <b>소리 미션</b>을 냈다 🎵</div>
+        <div><span class="box"></span> 도착해서 <b>배송 문자</b>가 떴다 📦</div>
+        <div><span class="box"></span> <b>배송 완료!</b> 🎉</div>
+      </div>
+      <div class="hint" style="margin-top:6px">가장 재미있었던 부분 / 어려웠던 부분: <span class="blank w" style="min-width:120px"></span></div>
+    </div>
+    <div class="deep">
+      <h2>⭐ 심화 — 정밀 주차 챌린지</h2>
+      <div class="form">목표 거리에 최대한 정확히 주차! 멈춘 뒤 <b>오차 = |목표 − 현재|</b>를 계산해요. (오차가 작을수록 고득점 🏆)</div>
+      <table><tr><th>회</th><th>목표 거리</th><th>현재 거리</th><th>오차 = |목표−현재|</th><th>별점</th></tr>
+        <tr><td>1</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>2</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>3</td><td></td><td></td><td></td><td></td></tr></table>
+      <div class="hint" style="margin-top:5px">홈 화면 아래 <b>🅿️ 정밀 주차 챌린지</b>에서 도전! 최소 오차: <span class="blank s"></span></div>
+    </div>
+  </div>
+
+  <p class="foot">수학SW체험활동 · 경남수학문화관 — 센서로 수학을, 수학으로 코딩을 ✏️🤖</p>
 </body></html>
