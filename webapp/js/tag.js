@@ -193,8 +193,10 @@
   function drawCount(n) {
     state.dotClear(); state.displayMode = 0xFF; state.dot.fill(0);
     n = Math.max(0, Math.min(99, n | 0));
-    if (n < 10) stampDigit(n, 3);             // 한 자리 → 가운데(열 3~5)
-    else { stampDigit((n / 10) | 0, 1); stampDigit(n % 10, 5); } // 두 자리 → 좌(1~3)·우(5~7)
+    if (n < 10) stampDigit(n, 3);             // 한 자리 → 가운데
+    // 두 자리: 180° 회전 시 자리도 좌우로 뒤집히므로, 십의 자리를 5·일의 자리를 1에 찍어
+    // 회전 후 십(왼쪽)·일(오른쪽)이 되도록 보정 (14가 41로 안 보이게).
+    else { stampDigit((n / 10) | 0, 5); stampDigit(n % 10, 1); }
   }
 
   // ---- 운전 ----

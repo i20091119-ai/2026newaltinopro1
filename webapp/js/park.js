@@ -11,7 +11,7 @@
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null;
   const STREAM_MS = 50;
-  let lastNative = null, manualDisconnect = false, reconnectTimer = null;
+  // (재연결은 네이티브가 담당 — JS 타이머 불필요)
 
   const DRIVE = 250;          // 정밀 조작을 위해 순항보다 느리게
   const STEER = 100;
@@ -109,33 +109,31 @@
     el.addEventListener('mouseleave', (e) => { if (el.classList.contains('pressed')) u(e); });
   }
 
-  // ---- 연결 (BLE 무페어링, tag/mode1과 동일 패턴) ----
+  // ---- 연결 (BLE 무페어링, tag/mode1과 동일: 바인딩된 로봇 자동 이어받기·재연결은 네이티브) ----
+  function connErr(s) {
+    const m = { 'error:no-bound': '로봇을 먼저 선택', 'error:give-up': '연결 실패 — 다시 선택', 'error:no-uart-char': 'UART 특성 없음', 'error:notify-failed': '알림 설정 실패', 'error:busy': '연결 중(스캔 불가)', 'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜세요' };
+    return m[s] || s.replace('error:', '');
+  }
+  function wireNative(t) {
+    t.on('status', (s) => {
+      const b = String(s).split(':')[0];
+      if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
+      else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
+      else if (b === 'disconnected') setStatus('🔗 연결 끊김', 'off');
+      else setStatus('⚠ ' + connErr(s), 'err');
+    });
+    t.on('data', (bytes) => { for (const f of assembler.push(bytes)) onSensor(f); });
+  }
   async function connect(kind, addr) {
     await disconnect();
-    manualDisconnect = false;
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     try {
-      if (kind === 'native') {
-        transport = new T.AndroidBridgeTransport(); lastNative = addr || 'auto';
-        setStatus('🔗 연결 중…', 'pending');
-        if (addr) await transport.connectTo(addr); else await transport.connect();
-      } else { lastNative = null; transport = new T.MockTransport(); await transport.connect({}); }
-      transport.on('status', (s) => {
-        if (s === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
-        else if (s === 'disconnected') { setStatus('🔗 연결 끊김', 'off'); maybeReconnect(); }
-        else { setStatus('⚠ ' + s.replace('error:', ''), 'err'); maybeReconnect(); }
-      });
-      transport.on('data', (bytes) => { for (const f of assembler.push(bytes)) onSensor(f); });
-      if (kind !== 'native') setStatus('🔗 연결됨 ✓ (데모)', 'ok');
-    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; maybeReconnect(); }
+      if (kind === 'native') { transport = new T.AndroidBridgeTransport(); wireNative(transport); setStatus('🔗 연결 중…', 'pending'); if (addr) await transport.connectTo(addr); else await transport.connect(); }
+      else { transport = new T.MockTransport(); wireNative(transport); await transport.connect({}); setStatus('🔗 연결됨 ✓ (데모)', 'ok'); }
+    } catch (e) { setStatus('⚠ 연결 실패', 'err'); transport = null; }
   }
-  function maybeReconnect() {
-    if (manualDisconnect || !lastNative || reconnectTimer) return;
-    reconnectTimer = setTimeout(() => { reconnectTimer = null; setStatus('🔗 재연결 중…', 'pending'); connect('native', lastNative === 'auto' ? undefined : lastNative); }, 3000);
-  }
+  function adoptNative() { transport = new T.AndroidBridgeTransport(); wireNative(transport); transport.adopt(); } // 살아있는 링크 이어받기
+  function nativeStart() { const st = new T.AndroidBridgeTransport().state(); if (st.connected) adoptNative(); else if (st.address) connect('native', st.address); else pickAndConnect(); }
   async function disconnect() {
-    manualDisconnect = true;
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     stopScanning(); state.stopAll();
     if (transport) { try { await transport.send(P.buildFrame(state)); } catch (e) {} try { await transport.disconnect(); } catch (e) {} }
     transport = null; setStatus('🔗 연결 안 됨', 'off');
@@ -204,7 +202,7 @@
 
     newRound();
     startStream();
-    if (T.AndroidBridgeTransport.supported) { setStatus('🔗 연결 안 됨', 'off'); pickAndConnect(); }
+    if (T.AndroidBridgeTransport.supported) { setStatus('🔗 연결 안 됨', 'off'); nativeStart(); } // 연결됨→이어받기 / 바인딩됨→그 로봇 / 없음→스캔
     else setStatus('🔗 연결 안 됨 (데모 가능)', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);
