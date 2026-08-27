@@ -33,9 +33,9 @@ import kotlin.random.Random
  * 부스 12대 동시운영 안정화(재작성):
  *  - GATT 직렬 큐 + 코얼레싱(최신 프레임만) + 콜백 기반 완료대기 + 2초 워치독
  *  - CCCD 쓰기 완료 후에야 connected 발행
- *  - 상태코드(8/19/133)별 처리 + 네이티브 지수백오프·지터 재연결 + close 후 600ms
+ *  - 상태코드(8/19/133)별 처리 + '포기 없는' 재연결(2회부터 autoConnect=true, OS 배경 재연결)
  *  - MAC 바인딩: 한 번 고른 로봇만 저장/재연결(다른 로봇에 안 붙음), 페이지 이동 시 연결 유지
- *  - 스캔: ServiceUUID 필터 + BALANCED + 10초 자동정지 + 연결 중 스캔 금지 + 6초 간격
+ *  - 스캔: 필터 없이 스캔→이름 접두 선별(UUID 미광고 로봇도 발견) + BALANCED + 10초 자동정지
  *
  * JS 인터페이스(window.AltinoNative):
  *   startScan()/stopScan()/listDevices()  → __altinoOnScan({name,address,rssi})
@@ -76,7 +76,6 @@ class AltinoBle(
         private const val SCAN_MIN_GAP = 6_000L  // startScan 최소 간격(30초/5회 스로틀 회피)
         private const val CLOSE_SETTLE_MS = 600L // close 후 재연결 최소 대기
         private const val OP_TIMEOUT_MS = 2_000L
-        private const val MAX_RECONNECT = 5
     }
 
     private val adapter: BluetoothAdapter? = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -395,17 +394,22 @@ class AltinoBle(
         return true
     }
 
-    // ---- 재연결(지수 백오프 + 지터) ----
+    // ---- 재연결(지수 백오프 + 지터, '절대 포기 안 함' = 오케스트라 방식) ----
     private fun scheduleReconnect() {
         if (!wantConnect) return
         val addr = boundAddress ?: return
         reconnectAttempts++
-        if (reconnectAttempts > MAX_RECONNECT) { status("error:give-up"); return }
-        val base = minOf(1000L * (1L shl (reconnectAttempts - 1)), 15_000L)
-        val delay = base + Random.nextLong(0, 1500)
-        val auto = reconnectAttempts >= 2   // 2회 실패 후 autoConnect=true(혼잡에 강함)
+        // 핵심: 포기(give-up) 없음. 로봇이 꺼졌다/멀어졌다 다시 나타나면 스스로 재연결.
+        //  - 1회는 direct(빠른 복구), 2회부터는 autoConnect=true → OS가 배경에서 링크요청을
+        //    유지하며 로봇이 광고를 재개하는 순간 자동 재연결(혼잡·거리에 압도적으로 강함).
+        val auto = reconnectAttempts >= 2
+        // 백오프는 최대 ~10초에서 캡(계속 시도하되 전파를 덜 어지럽힘)
+        val idx = minOf(reconnectAttempts, 5)
+        val base = minOf(800L * (1L shl (idx - 1)), 10_000L)
+        val delay = base + Random.nextLong(0, 1200)
         status("reconnecting:$reconnectAttempts")
-        main.postDelayed({ if (wantConnect) openConnection(addr, auto) }, delay)
+        // 타이머가 뜨는 사이 이미 붙었으면(!isConnected 가드) 좋은 연결을 끊지 않는다.
+        main.postDelayed({ if (wantConnect && !isConnected) openConnection(addr, auto) }, delay)
     }
 
     // ======================= JS 조회/제어 =======================
