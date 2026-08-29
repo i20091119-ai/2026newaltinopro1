@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>알티노 앱 템플릿 (여기를 앱 이름으로)</title>
+<!--
+  ═══════════════════════════════════════════════════════════════
+  알티노 학교자율시간 앱 템플릿
+  - 이 파일을 복사해서 새 앱을 시작하세요: 예) t07.html + js/t07.js
+  - "★ 공통" 표시 구역은 그대로 두고, "✎ 앱 내용" 구역만 바꾸면 됩니다.
+  - 개발 가이드: docs/dev-guide/ 폴더의 문서를 먼저 읽으세요.
+  ═══════════════════════════════════════════════════════════════
+-->
+<style>
+  /* ★ 공통 스타일 — 전 앱 통일. 색·폰트 바꾸지 마세요(앱마다 달라지면 산만해짐) */
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-light.woff2') format('woff2');font-weight:300;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-medium.woff2') format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-bold.woff2') format('woff2');font-weight:700;font-display:swap}
+  :root{--cream:#fff7ea;--ink:#3a3230;--mut:#9b8f86;--mint:#37c9ad;--sun:#ffb23e;--coral:#ff7a86;--blue:#5ea0ff;--grape:#b085ff;--line:#f0e6d8;--card:#fff;--shadow:0 8px 24px rgba(120,90,50,.12);--r:20px}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{font-family:'Esamanru','Pretendard',system-ui,sans-serif;font-weight:500;color:var(--ink);
+    background:linear-gradient(rgba(255,247,234,.55),rgba(255,247,234,.55)), url('assets/bg.png') center/cover no-repeat, var(--cream);
+    height:100vh;overflow:hidden;letter-spacing:.01em;user-select:none;padding:10px 16px;display:flex;flex-direction:column;gap:8px}
+  h1,h2,b{font-weight:700}
+  .hidden{display:none !important}
+  .btn{border:0;border-radius:16px;font-family:inherit;font-size:1.05rem;padding:12px 18px;cursor:pointer;background:var(--blue);color:#fff;box-shadow:var(--shadow)}
+  .btn:active{transform:translateY(2px)}.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+  .btn.mint{background:var(--mint)}.btn.coral{background:var(--coral)}.btn.sun{background:var(--sun)}.btn:disabled{opacity:.45}
+  .btn.pressed{transform:translateY(2px);filter:brightness(.92)}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .topbar a{color:var(--blue);text-decoration:none}
+  .chip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow);font-size:.9rem;white-space:nowrap}
+  /* 센서 숫자 칸은 고정폭(tabular-nums) — 값이 바뀌어도 안 떨림 */
+  .num{display:inline-block;text-align:right;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;min-width:5ch}
+  .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px}
+  .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}.status.pending{color:#a86400;border-color:#ffe0a3}
+  .status.off{color:var(--mut)}
+  .stage{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 16px;overflow:auto;min-height:0}
+  .card h2{margin:0 0 8px;font-size:1.05rem}
+  .lead{color:var(--mut);font-size:.9rem;margin:4px 0}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#3a3230;color:#fff;
+    padding:12px 22px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;z-index:60;font-size:1rem;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* 조종 패드 */
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:260px;margin:0 auto}
+  .pad .btn{font-size:1.5rem;padding:16px 0}
+  input,select{font-family:inherit;font-size:1.05rem;padding:10px 12px;border-radius:12px;border:2px solid var(--line)}
+</style>
+</head>
+<body>
+
+<!-- ★ 공통: 상단바 — 홈 링크 · 앱 제목 · 실시간 센서 칩 · 연결 상태(탭하면 연결창) -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="home.html">← 홈</a>
+    <h1 style="margin:0;font-size:1.25rem">🧩 앱 템플릿 <span class="lead" style="display:inline">(제목을 바꾸세요)</span></h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span class="chip">앞 TOF <b class="num" id="chipIr2">—</b></span>
+    <span class="chip">조도 <b class="num" id="chipCds">—</b></span>
+    <span class="chip" id="battChip" style="display:none">🔋 —</span>
+    <button id="status" class="status off">🔗 연결 안 됨</button>
+  </div>
+</div>
+
+<!-- ✎ 앱 내용: 아래 카드들을 여러분의 앱 화면으로 교체하세요.
+     (템플릿에는 조종·소리·도트·LED·기록 예시가 들어 있음 — 필요한 것만 남기기) -->
+<div class="stage">
+
+  <div class="card">
+    <h2>🕹 조종 (누르는 동안 동작)</h2>
+    <div class="pad">
+      <span></span><button id="d-up" class="btn">⬆</button><span></span>
+      <button id="d-left" class="btn sun">⬅</button><button id="d-stop" class="btn ghost">■</button><button id="d-right" class="btn sun">➡</button>
+      <span></span><button id="d-down" class="btn coral">⬇</button><span></span>
+    </div>
+    <p class="lead">속도 <b id="spdVal">250</b> <input id="spd" type="range" min="150" max="550" step="50" value="250" style="width:120px;vertical-align:middle"></p>
+  </div>
+
+  <div class="card">
+    <h2>🎵 소리 & 💡 LED</h2>
+    <p><select id="note"></select>
+      <button id="playNote" class="btn mint">▶ 재생</button>
+      <span class="lead">태블릿+로봇 부저 동시 재생</span></p>
+    <p><button id="ledOn" class="btn sun">💡 LED 켜기</button>
+      <button id="ledOff" class="btn ghost">끄기</button></p>
+  </div>
+
+  <div class="card">
+    <h2>🔢 도트매트릭스</h2>
+    <p><input id="dotNum" type="number" min="0" max="99" value="14" style="width:80px" inputmode="numeric">
+      <button id="dotShow" class="btn">표시</button>
+      <button id="dotClear" class="btn ghost">지우기</button></p>
+    <p class="lead">로봇 정면에서 보는 사람 기준으로 바르게 보임(180° 보정 내장)</p>
+    <h2 style="margin-top:14px">💾 기록 (localStorage 예시)</h2>
+    <p>누른 횟수 <b id="cnt">0</b> <button id="cntUp" class="btn ghost">+1</button>
+      <button id="cntReset" class="btn ghost">초기화</button></p>
+    <p class="lead">앱을 껐다 켜도 유지됨 — 연결 끊김 대비 필수 패턴</p>
+  </div>
+
+</div>
+
+<!-- ★ 공통: 토스트(짧은 안내 메시지) -->
+<div id="toast"></div>
+
+<!-- ★ 공통: 스크립트 로드 순서 고정 -->
+<script src="js/protocol.js"></script>
+<script src="js/transport.js"></script>
+<script src="js/template.js"></script><!-- ✎ 새 앱에서는 js/tXX.js 로 변경 -->
+</body>
+</html>
