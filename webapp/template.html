@@ -93,8 +93,9 @@
     <h2>🔢 도트매트릭스</h2>
     <p><input id="dotNum" type="number" min="0" max="99" value="14" style="width:80px" inputmode="numeric">
       <button id="dotShow" class="btn">표시</button>
-      <button id="dotClear" class="btn ghost">지우기</button></p>
-    <p class="lead">로봇 정면에서 보는 사람 기준으로 바르게 보임(180° 보정 내장)</p>
+      <button id="dotClear" class="btn ghost">지우기</button>
+      <button id="dotCal" class="btn ghost">방향 맞추기</button></p>
+    <p class="lead">논리좌표(왼→오, 위→아래)로 그리면 방향 보정은 공용 모듈이 처리해요</p>
     <h2 style="margin-top:14px">💾 기록 (localStorage 예시)</h2>
     <p>누른 횟수 <b id="cnt">0</b> <button id="cntUp" class="btn ghost">+1</button>
       <button id="cntReset" class="btn ghost">초기화</button></p>
@@ -108,6 +109,7 @@
 
 <!-- ★ 공통: 스크립트 로드 순서 고정 -->
 <script src="js/protocol.js"></script>
+<script src="js/dotmatrix.js"></script>
 <script src="js/transport.js"></script>
 <script src="js/template.js"></script><!-- ✎ 새 앱에서는 js/tXX.js 로 변경 -->
 </body>

@@ -63,6 +63,7 @@
   .mplus{font-size:1.6rem;color:var(--mut)}
   .calcrow{text-align:center;font-size:1.3rem;margin:10px 0 4px}
   /* ⑤ 블록 조립 */
+  .hintbar{background:#fff8e8;border:2px solid #ffe0a3;border-radius:12px;padding:8px 12px;margin:6px 0 8px;font-size:.95rem;color:#7a5a10}
   .slots{display:flex;flex-direction:column;gap:7px;margin:0}
   .slot{border:2px dashed var(--line);border-radius:14px;min-height:50px;display:flex;align-items:center;padding:0 10px;color:var(--mut);background:#fafafa;font-size:.9rem}
   .slot.ok{border-style:solid;border-color:var(--mint);background:#effbf6}
@@ -174,6 +175,8 @@
       <div class="eyebrow">⑤ 프로그램 조립 — 숫자 넣고 순서 맞추기</div>
       <h1>배송 프로그램을 완성하자 🧩</h1>
       <p class="lead">✏️ <b>활동지에 쓴 숫자</b>를 각 블록의 빈칸에 넣고, <b>실행 순서</b>대로 탭해서 위 칸에 놓아요. 다 되면 [조립 확인]!</p>
+      <!-- 힌트는 상시 노출 — 예전엔 1번 슬롯 안내문으로만 있어서 블록을 놓는 순간 사라졌다(현장 지적) -->
+      <p class="hintbar">💡 <b>달리기 전에 터널 기준부터!</b> — 차가 “터널이다”를 알아야 소리 미션을 할 수 있어요.</p>
       <div class="build">
         <div><div class="colcap">📋 실행 순서 (1→5)</div><div class="slots" id="slots"></div></div>
         <div><div class="colcap">🧰 블록 창고 — 숫자를 넣고 탭!</div><div class="palette" id="palette"></div></div>
@@ -233,6 +236,7 @@
   </div>
   <div id="toast"></div>
   <script src="js/protocol.js"></script>
+<script src="js/dotmatrix.js"></script>
   <script src="js/transport.js"></script>
   <script src="js/code.js"></script>
 </body>

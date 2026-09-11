@@ -443,7 +443,9 @@
     setDrive(0, 0);
   }
   async function backBump() { setDrive(BUMP_SPEED, 0); await sleep(BUMP_MS); setDrive(0, 0); state.steer(0); await sleep(200); }
-  function showLetter(code) { const r = FONT[code] || FONT.D; state.displayMode = 0xFF; for (let i = 0; i < 8; i++) state.dot[i] = r[i]; }
+  // 배송 문자 표시 — 방향 보정(js/dotmatrix.js)을 거쳐 찍는다.
+  // FONT는 '바이트=행(위→아래), 비트7=맨왼쪽열'로 설계돼 있어 drawBytes가 그대로 해석한다.
+  function showLetter(code) { window.AltinoDot.drawBytes(state, FONT[code] || FONT.D); }
   async function soundMission() {  // 차량 부저: 계이름1·계이름2 × 반복N, 0.5초 간격
     for (let i = 0; i < repeatN && running; i++) { state.soundSet(note1); await sleep(500); state.soundSet(note2); await sleep(500); }
     state.soundSet(0);

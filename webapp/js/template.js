@@ -194,30 +194,16 @@
   }
 
   // ───────────────────────────────────────────────
-  // ★ 공통 헬퍼: 도트매트릭스 — 180° 보정 내장 (수정 금지)
-  //   로봇 정면에서 보는 사람 기준으로 숫자가 바르게 보임.
-  //   dot180(c,r): 1..8 좌표를 180° 회전해 찍음.
+  // ★ 공통 헬퍼: 도트매트릭스 — js/dotmatrix.js(공용 모듈) 사용 (수정 금지)
+  //   ⚠ state.dotOn(col,row)을 직접 쓰지 마세요! 실제 하드웨어는 축이 전치돼 있어
+  //     (바이트=행, 비트7=맨왼쪽 열) 직접 찍으면 글자가 깨집니다. 자세한 근거는
+  //     js/dotmatrix.js 주석과 docs/dev-guide/04_시행착오_사례집.md 참고.
+  //   논리좌표(x=왼→오, y=위→아래)로만 그리면 모듈이 알아서 변환합니다.
   // ───────────────────────────────────────────────
-  const DOT_FONT = { // 3×5 숫자 폰트 (행 5개, 각 행 3비트)
-    0: [0b111, 0b101, 0b101, 0b101, 0b111], 1: [0b010, 0b110, 0b010, 0b010, 0b111],
-    2: [0b111, 0b001, 0b111, 0b100, 0b111], 3: [0b111, 0b001, 0b111, 0b001, 0b111],
-    4: [0b101, 0b101, 0b111, 0b001, 0b001], 5: [0b111, 0b100, 0b111, 0b001, 0b111],
-    6: [0b111, 0b100, 0b111, 0b101, 0b111], 7: [0b111, 0b001, 0b010, 0b010, 0b010],
-    8: [0b111, 0b101, 0b111, 0b101, 0b111], 9: [0b111, 0b101, 0b111, 0b001, 0b111],
-  };
-  const dot180 = (c, r) => state.dotOn(9 - c, 9 - r);
-  function stampDigit(d, baseCol) {     // baseCol: 숫자 왼쪽 열(1..6)
-    const rows = DOT_FONT[d]; if (!rows) return;
-    for (let dr = 0; dr < 5; dr++) for (let dc = 0; dc < 3; dc++)
-      if (rows[dr] & (1 << (2 - dc))) dot180(baseCol + dc, 2 + dr);
-  }
-  function drawNumber(n) {              // 0..99 를 도트에 표시 (십의 자리=왼쪽) — 현장 검증된 배치
-    n = Math.max(0, Math.min(99, n | 0));
-    state.dotClear(); state.displayMode = 0xFF;
-    if (n < 10) stampDigit(n, 3);
-    else { stampDigit((n / 10) | 0, 5); stampDigit(n % 10, 1); }
-    if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
-  }
+  const D = window.AltinoDot;
+  function sendNow() { if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} } }
+  function drawNumber(n) { D.drawNumber(state, n); sendNow(); }          // 0~99 (십의 자리=왼쪽)
+  function drawGlyph(rows, x, y) { D.drawGlyph(state, rows, x, y); sendNow(); }  // 임의 비트맵 ['101','010',…]
 
   // ───────────────────────────────────────────────
   // ★ 공통 헬퍼: 진행 상태 저장 — 키는 앱 고유로! ('altino' + 앱ID + 'V1')
@@ -265,7 +251,9 @@
 
     // 도트매트릭스 데모
     $('dotShow').onclick = () => { drawNumber(+$('dotNum').value || 0); toast('도트 표시: ' + (+$('dotNum').value || 0)); };
-    $('dotClear').onclick = () => { state.dotClear(); };
+    $('dotClear').onclick = () => { D.clear(state); sendNow(); };
+    // 숫자가 이상하게 보이면 방향 보정(8가지 중 선택 → 저장, 전 앱 공용)
+    $('dotCal') && ($('dotCal').onclick = () => D.openCalibration({ state, send: sendNow, onDone: () => toast('도트 방향 저장됨') }));
 
     // 기록(localStorage) 데모 — 재시작해도 유지
     const saved = loadState();

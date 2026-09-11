@@ -96,8 +96,13 @@
   .side{display:flex;flex-direction:column;justify-content:center;gap:12px;min-height:0}
   .side .btn.big{padding:22px;font-size:1.4rem}
   .charge{font-size:1.5rem}
-  .speedrow{display:flex;justify-content:space-between;align-items:center;background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow);font-size:1.2rem}
+  .speedrow{display:flex;justify-content:space-between;align-items:center;background:#fff;border:2px solid var(--line);border-radius:16px;padding:10px 12px;box-shadow:var(--shadow);font-size:1.2rem;gap:8px}
   .speedrow b{font-size:1.6rem;color:var(--blue)}
+  /* 속도 ±: 이미 산 단계 안에서는 무료로 오르내림(빨라서 못 잡겠다 → 바로 낮추기) */
+  .sbtn{border:0;border-radius:12px;background:var(--blue);color:#fff;font-family:inherit;font-size:1.5rem;font-weight:700;
+    width:56px;height:52px;cursor:pointer;box-shadow:var(--shadow);flex:none}
+  .sbtn:active{transform:translateY(2px)}
+  .sbtn:disabled{opacity:.35;box-shadow:none}
 
   details.viewer{background:#fff;border:2px solid var(--line);border-radius:18px;padding:10px 14px;box-shadow:var(--shadow)}
   details.viewer summary{cursor:pointer;color:var(--mut)}
@@ -169,6 +174,8 @@
       <div class="gradechip"><b id="gradeLabel">초3</b> 친구</div>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="changeGradeBtn" class="btn ghost" style="padding:6px 12px;font-size:.85rem">학년 바꾸기</button>
+        <!-- 새 판: 조종 영역 밖(상단)으로 분리 + 확인창 — 게임 중 오터치로 기록 날아가는 사고 방지 -->
+        <button id="resetBtn" class="btn ghost" style="padding:6px 12px;font-size:.85rem">🔄 새 판</button>
         <span id="battChip" class="status" style="display:none">🔋 –</span>
         <button id="status" class="status" style="cursor:pointer" title="탭하면 알티노 연결">🔗 연결 안 됨</button>
       </div>
@@ -193,9 +200,12 @@
       </div>
       <div class="side">
         <button id="chargeBtn" class="btn mint big charge"><img class="bic" src="assets/charge.png"> 충전소 (문제 풀기)</button>
-        <div class="speedrow"><span>현재 속도</span><b id="speedNow">350</b></div>
+        <div class="speedrow">
+          <button id="speedDown" class="sbtn" title="느리게">−</button>
+          <span>속도 <b id="speedNow">350</b></span>
+          <button id="speedUpBtn" class="sbtn" title="빠르게">+</button>
+        </div>
         <button id="upgradeBtn" class="btn sun big"><img class="bic" src="assets/speedup.png"><span id="upgradeText">속도업</span></button>
-        <button id="resetBtn" class="btn ghost">🔄 새 판 (초기화)</button>
         <div class="carbox"><img id="gameCar" class="mascot-img" src="assets/mascot-happy.png" alt="마스코트"></div>
       </div>
       <div class="padwrap zoneR">
@@ -221,6 +231,8 @@
         <div class="s rear"><div class="l">후면 ★ (ir6)</div><div class="v" id="sv-ir6">–</div></div>
         <div class="s"><div class="l">배터리</div><div class="v" id="sv-bat">–</div></div>
       </div>
+      <div style="margin-top:10px"><button id="dotCalBtn" class="btn ghost">🔢 도트매트릭스 방향 맞추기</button>
+        <span style="color:var(--mut);font-size:.85rem">숫자가 이상하게 보일 때</span></div>
       <div class="slider" style="margin-top:10px"><input id="wsurl" type="text" value="ws://localhost:8080"></div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="c-ws" class="btn ghost">브리지 연결</button>
@@ -271,6 +283,7 @@
 <div id="toast"></div>
 
 <script src="js/protocol.js"></script>
+<script src="js/dotmatrix.js"></script>
 <script src="js/transport.js"></script>
 <script src="js/problems.js"></script>
 <script src="js/tag.js"></script>

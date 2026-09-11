@@ -22,7 +22,8 @@
 
   // ---- 코인 경제 (속도업) ----
   let coins = 0;
-  let speedTier = 0;
+  let speedTier = 0;        // 현재 속도 단계
+  let maxTier = 0;          // 구매한 최고 단계 — 이 범위 안에서는 ± 무료
   const SPEED_TIERS = [350, 400, 450, 500, 550];   // 초기 350, 업그레이드마다 +50, 상한 550
   const UPGRADE_COST = [2, 3, 4, 5];   // tier 0→1,1→2,2→3,3→4 비용(코인)
   const speedNow = () => SPEED_TIERS[speedTier];
@@ -101,14 +102,27 @@
   function updateShopUI() {
     if ($('coinVal')) $('coinVal').textContent = coins;
     if ($('speedNow')) $('speedNow').textContent = speedNow();
+    // 속도 ± : 이미 구매한 단계(maxTier) 안에서는 코인 없이 자유롭게 오르내림
+    const dn = $('speedDown'), up = $('speedUpBtn');
+    if (dn) dn.disabled = speedTier <= 0;
+    if (up) up.disabled = speedTier >= maxTier;
     const btn = $('upgradeBtn'), t = $('upgradeText'); if (!btn || !t) return;
-    if (speedTier >= SPEED_TIERS.length - 1) {
-      t.textContent = '최고 속도!'; btn.disabled = true;
+    if (maxTier >= SPEED_TIERS.length - 1) {
+      t.textContent = '최고 속도 구매완료!'; btn.disabled = true;
     } else {
-      const cost = UPGRADE_COST[speedTier];
-      t.textContent = `속도업 ${SPEED_TIERS[speedTier + 1]} (코인 ${cost})`;
+      const cost = UPGRADE_COST[maxTier];
+      t.textContent = `속도업 ${SPEED_TIERS[maxTier + 1]} (코인 ${cost})`;
       btn.disabled = coins < cost;
     }
+  }
+
+  // 산 단계 범위에서 속도만 조절(코인 변동 없음) — "너무 빨라서 못 잡겠어요" 대응
+  function stepSpeed(d) {
+    const next = Math.max(0, Math.min(maxTier, speedTier + d));
+    if (next === speedTier) return;
+    speedTier = next;
+    updateShopUI(); saveState();
+    toast(`속도 ${speedNow()}`);
   }
 
   // 마스코트 표정: 주행=happy, 잡힘 순간=oops, 에너지0=tired
@@ -122,10 +136,10 @@
   }
 
   function buyUpgrade() {
-    if (speedTier >= SPEED_TIERS.length - 1) return;
-    const cost = UPGRADE_COST[speedTier];
+    if (maxTier >= SPEED_TIERS.length - 1) return;
+    const cost = UPGRADE_COST[maxTier];
     if (coins < cost) { toast('코인이 부족해요! 문제를 더 풀어요'); return; }
-    coins -= cost; speedTier++;
+    coins -= cost; maxTier++; speedTier = maxTier;   // 사면 그 속도로 바로 올라감
     sfx('upgrade');
     updateShopUI();
     saveState();
@@ -176,28 +190,11 @@
   }
 
   // ---- 도트매트릭스에 잡힌 횟수 표시 ----
-  // 3x5 숫자 폰트(행 위→아래). 한 자리=가운데, 두 자리=좌/우.
-  const DIGITS = {
-    0:['111','101','101','101','111'], 1:['010','110','010','010','111'],
-    2:['111','001','111','100','111'], 3:['111','001','111','001','111'],
-    4:['101','101','111','001','001'], 5:['111','100','111','001','111'],
-    6:['111','100','111','101','111'], 7:['111','001','010','100','100'],
-    8:['111','101','111','101','111'], 9:['111','101','111','001','111'],
-  };
-  function stampDigit(d, baseCol) {           // baseCol=시작 열(1..), 행은 2..6
-    const g = DIGITS[d]; if (!g) return;
-    // 180° 회전: (col,row) → (9-col, 9-row). 반대편에서 봐도 숫자가 바로 보이게(두 자리 순서도 함께 뒤집힘).
-    for (let dr = 0; dr < 5; dr++) for (let dc = 0; dc < 3; dc++)
-      if (g[dr][dc] === '1') state.dotOn(9 - (baseCol + dc), 9 - (2 + dr));
-  }
-  function drawCount(n) {
-    state.dotClear(); state.displayMode = 0xFF; state.dot.fill(0);
-    n = Math.max(0, Math.min(99, n | 0));
-    if (n < 10) stampDigit(n, 3);             // 한 자리 → 가운데
-    // 두 자리: 180° 회전 시 자리도 좌우로 뒤집히므로, 십의 자리를 5·일의 자리를 1에 찍어
-    // 회전 후 십(왼쪽)·일(오른쪽)이 되도록 보정 (14가 41로 안 보이게).
-    else { stampDigit((n / 10) | 0, 5); stampDigit(n % 10, 1); }
-  }
+  // 그리기·방향 보정은 js/dotmatrix.js(공용)가 담당.
+  // 기존에 숫자가 깨져 보이던 원인: dotOn(col,row)의 축이 실제 하드웨어와 전치돼 있었음.
+  // 이제 논리좌표로만 그리므로 자리 뒤바뀜(14→41)도 구조적으로 발생하지 않는다.
+  const D = window.AltinoDot;
+  function drawCount(n) { D.drawNumber(state, n); }
 
   // ---- 운전 ----
   function bindHold(el, onDown, onUp) {
@@ -351,7 +348,7 @@
   const SAVE_KEY = 'altinoTagV1';
   let saveTick = 0;
   function saveState() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ e: Math.round(energy), c: coins, s: speedTier, ca: caught, g: selectedGrade })); } catch (e) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ e: Math.round(energy), c: coins, s: speedTier, mx: maxTier, ca: caught, g: selectedGrade })); } catch (e) {}
   }
   function clearState() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
   function restoreState() {
@@ -361,6 +358,8 @@
       energy = (o.e != null) ? o.e : 500;
       coins = o.c || 0;
       speedTier = Math.min(o.s || 0, SPEED_TIERS.length - 1);
+      // 구버전 저장본(mx 없음)은 현재 단계까지 구매한 것으로 간주
+      maxTier = Math.min(Math.max(o.mx != null ? o.mx : speedTier, speedTier), SPEED_TIERS.length - 1);
       caught = o.ca || 0;
       selectedGrade = o.g;
       return true;
@@ -394,6 +393,14 @@
     bindHold($('d-right'), () => intent.steer = 127,  () => intent.steer = 0);
 
     $('upgradeBtn').addEventListener('click', buyUpgrade);
+    $('speedDown').addEventListener('click', () => stepSpeed(-1));
+    $('speedUpBtn').addEventListener('click', () => stepSpeed(+1));
+    $('dotCalBtn') && $('dotCalBtn').addEventListener('click', () => D.openCalibration({
+      state,
+      send: () => { if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} } },
+      onDone: () => { toast('도트 방향 저장됨'); drawCount(caught); },
+      onCancel: () => drawCount(caught),
+    }));
     $('thresh').addEventListener('input', (e) => { rearThresh = +e.target.value; $('threshval').textContent = rearThresh; });
     $('threshval').textContent = rearThresh; $('thresh').value = rearThresh;
 
@@ -401,10 +408,13 @@
     $('probOk').addEventListener('click', checkProblem);
     $('probInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkProblem(); });
     $('probClose').addEventListener('click', () => $('repairModal').classList.add('hidden'));
+    // 새 판: 진행이 있으면 반드시 확인 — 게임 중 오터치로 기록이 날아가던 사고 방지
     $('resetBtn').addEventListener('click', () => {
-      caught = 0; energy = 500; coins = 0; speedTier = 0;
+      const hasProgress = caught > 0 || coins > 0 || maxTier > 0;
+      if (hasProgress && !confirm(`새 판을 시작하면 지금까지의 기록이 사라져요.\n\n· 잡힌 횟수 ${caught}회\n· 코인 ${coins}개\n· 속도 ${speedNow()}\n\n정말 새로 시작할까요?`)) return;
+      caught = 0; energy = 500; coins = 0; speedTier = 0; maxTier = 0;
       clearState();   // 새 판 = 저장된 진행 삭제(다음 학생은 처음부터)
-      $('caughtVal').textContent = 0; updateEnergyUI(); drawCount(0); toast('새 판 시작!');
+      $('caughtVal').textContent = 0; updateEnergyUI(); updateShopUI(); drawCount(0); toast('새 판 시작!');
     });
 
     $('c-ws').addEventListener('click', () => connect('ws'));
