@@ -1,0 +1,2 @@
+package android.webkit
+annotation class JavascriptInterface

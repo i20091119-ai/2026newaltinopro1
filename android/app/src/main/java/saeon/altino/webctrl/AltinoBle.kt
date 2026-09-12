@@ -124,18 +124,46 @@ class AltinoBle(
         object Mtu : Op()
         object Discover : Op()
     }
+    // GATT 호출 전용 단일 스레드.
+    // ⚠ 왜 필요한가: API 33+ 의 writeCharacteristic 은 결과값을 돌려주는 '동기 바인더 호출'이라,
+    //   부른 스레드가 블루투스 프로세스의 응답을 기다린다. 예전엔 그 호출을 sendFrame 을 부른
+    //   스레드(WebView JavaBridge)에서, 그것도 락을 쥔 채로 했다. 그래서 12대가 붐벼 스택이
+    //   밀리면 sendFrame 이 그대로 멈추고 → JS 가 그 반환을 기다리므로 → 게임 화면 전체가
+    //   같은 시간만큼 얼어붙었다. (실측: 스택 300ms 지연 → 화면 302ms 정지, 6초에 프레임 15개만 송신)
+    //   이제 큐에서 꺼내는 것만 락 안에서 하고, 실제 호출은 이 스레드에서 한다.
+    private val gattExec = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "altino-gatt").apply { isDaemon = true }
+    }
     private val ops = ArrayDeque<Op>()
     private var busy = false
     private var pendingFrame: ByteArray? = null
-    // ⚠ 워치독이 한 번 '건너뛰기'를 하면, 그 op 의 진짜 콜백이 뒤늦게 도착한다.
-    //   예전엔 그 늦은 콜백이 opDone() 을 불러 '지금 진행 중인 다른 op' 를 완료 처리해 버렸다
-    //   → 큐가 한 칸 앞질러 나가면서 두 op 가 동시에 떠 있게 되고, 스택이 뒤엣것을 버린다.
-    //   (조향 프레임이 가끔 씹히던 경로) 건너뛴 횟수를 세어 늦은 콜백을 삼킨다.
-    private var lateCallbacks = 0
-    private val watchdog = Runnable {
-        Log.w(TAG, "op timeout → skip")
-        synchronized(this) { if (busy) { lateCallbacks++; busy = false; pump() } }
+    // op 세대 번호. 워치독이 '자기가 감시하던 op' 만 건너뛰게 하는 용도다.
+    //
+    // ⚠ 여기서 더 나가지 않는 이유를 남겨 둔다.
+    //   워치독이 op N 을 건너뛴 뒤 op N+1 이 시작되면, N 의 늦은 콜백이 N+1 을 앞당겨
+    //   완료시킬 수 있다. 이걸 막으려고 '늦은 콜백 삼키기' 를 넣었다가 되돌렸다.
+    //   안드로이드 GATT 콜백에는 우리가 붙인 번호가 없어서, 늦은 콜백과 정상 콜백을
+    //   구별할 방법이 아예 없다. 그래서 무엇을 세든 로봇이 한동안 응답을 안 하면
+    //   (멀어짐·리셋) 그 수가 쌓이고, 돌아온 뒤 정상 콜백까지 삼켜 큐가 2초에 하나씩만
+    //   도는 상태로 기어간다 — 실측으로 재현했다(무응답 6.5초 → 복구 2초 동안 0건).
+    //   앞당겨 완료되는 쪽의 피해는 '프레임 한 장을 스택이 버리는 것' 뿐이고, 프레임은
+    //   10Hz 로 계속 나가며 최신 것이 이기므로 사실상 무해하다.
+    //   더 나쁜 쪽(큐가 기어감)을 피해 더 나은 쪽(프레임 한 장)을 택한다.
+    private var opGen = 0
+    // 감시 중이던 op 를 가리키는 워치독(op 마다 새로 만든다). 세대가 다르면 아무것도 안 한다
+    // — 이미 끝난 op 의 워치독이 뒤늦게 깨어나 '지금 도는 op' 를 죽이지 못하게.
+    @Volatile private var curWatchdog: Runnable? = null
+    private fun armWatchdog(gen: Int) {
+        curWatchdog?.let { main.removeCallbacks(it) }
+        val wd = Runnable {
+            var go = false
+            synchronized(this) { if (busy && opGen == gen) { Log.w(TAG, "op timeout → skip"); busy = false; go = true } }
+            if (go) pump()
+        }
+        curWatchdog = wd
+        main.postDelayed(wd, OP_TIMEOUT_MS)
     }
+    private fun cancelWatchdog() { curWatchdog?.let { main.removeCallbacks(it) }; curWatchdog = null }
 
     // ---- 좀비(반열림) 링크 감지 ----
     // '연결됨'인데 로봇이 실제론 죽은 상태(전파 간섭·로봇 리셋)를 OS 타임아웃보다 먼저 잡는다.
@@ -195,6 +223,7 @@ class AltinoBle(
 
     /** 액티비티 종료 시 호출 — 리시버 해제와 타이머 정리(누수·유령 복구 방지). */
     fun release() {
+        try { gattExec.shutdownNow() } catch (e: Exception) {}
         try { btReceiver?.let { context.unregisterReceiver(it) } } catch (e: Exception) {}
         btReceiver = null
         main.removeCallbacksAndMessages(null)
@@ -317,7 +346,7 @@ class AltinoBle(
             // 대기하는 사이에 사용자가 해제/짝변경을 했을 수 있다. 확인하지 않으면
             // 해제한 로봇에 계속 붙어 있어 다른 태블릿도 그 로봇을 못 쓴다.
             if (!wantConnect || boundAddress != address) { connecting = false; return@postDelayed }
-            synchronized(this) { ops.clear(); busy = false; lateCallbacks = 0; pendingFrame = null; negotiatedMtu = 23 }
+            synchronized(this) { ops.clear(); busy = false; pendingFrame = null; negotiatedMtu = 23 }
             try {
                 val g = dev.connectGatt(context, autoConnect, gattCb, BluetoothDevice.TRANSPORT_LE)
                 if (g == null) { connecting = false; status("disconnected:connect-failed"); scheduleReconnect(); return@postDelayed }
@@ -463,22 +492,35 @@ class AltinoBle(
     }
 
     // ---- 직렬 큐 ----
-    @Synchronized private fun enqueue(op: Op) { ops.addLast(op); pump() }
+    // 락은 '큐를 만지는 동안'만 잡는다. 실제 GATT 호출은 gattExec 에서, 락 없이.
+    private fun enqueue(op: Op) {
+        synchronized(this) { ops.addLast(op) }
+        pump()
+    }
+
+    private fun pump() {
+        val g: BluetoothGatt
+        val op: Op
+        synchronized(this) {
+            if (busy) return                     // 이미 하나 떠 있음 — 그게 끝나면 이어서 돈다
+            g = gatt ?: return
+            op = ops.removeFirstOrNull() ?: run {
+                // 큐 비면 코얼레싱 슬롯의 최신 프레임 1개만
+                val f = pendingFrame ?: return
+                val ch = writeCh ?: return
+                pendingFrame = null
+                Op.Write(ch, f)
+            }
+            busy = true
+            armWatchdog(++opGen)
+        }
+        gattExec.execute { runOp(g, op) }
+    }
 
     @SuppressLint("MissingPermission")
-    @Synchronized private fun pump() {
-        if (busy) return
-        val g = gatt ?: return
-        val op = ops.removeFirstOrNull()
-        if (op == null) {                       // 큐 비면 코얼레싱 슬롯의 최신 프레임 1개만
-            val f = pendingFrame ?: return
-            val ch = writeCh ?: return
-            pendingFrame = null
-            ops.addLast(Op.Write(ch, f)); pump()
-            return
-        }
-        busy = true
-        main.removeCallbacks(watchdog); main.postDelayed(watchdog, OP_TIMEOUT_MS)
+    private fun runOp(g: BluetoothGatt, op: Op) {
+        // 이 작업이 큐에 들어간 사이에 연결이 끊겼을 수 있다 — 닫힌 gatt 를 부르지 않는다.
+        if (gatt !== g) { synchronized(this) { if (busy) busy = false }; return }
         val ok = try {
             when (op) {
                 is Op.Write -> writeCompat(g, op.ch, op.data)
@@ -487,14 +529,18 @@ class AltinoBle(
                 Op.Discover -> g.discoverServices()
             }
         } catch (e: Exception) { Log.e(TAG, "pump op", e); false }
-        if (!ok) { main.removeCallbacks(watchdog); busy = false; pump() }
+        // 호출 자체가 거부되면 콜백이 안 오므로 여기서 다음 것으로 넘긴다.
+        if (!ok) {
+            synchronized(this) { cancelWatchdog(); busy = false }
+            pump()
+        }
     }
 
-    @Synchronized private fun opDone() {
-        // 워치독이 이미 넘긴 op 의 뒤늦은 콜백이면, 지금 떠 있는 op 를 건드리지 않고 버린다.
-        if (lateCallbacks > 0) { lateCallbacks--; return }
-        main.removeCallbacks(watchdog)
-        busy = false
+    private fun opDone() {
+        synchronized(this) {
+            cancelWatchdog()
+            busy = false
+        }
         pump()
     }
 
@@ -609,8 +655,8 @@ class AltinoBle(
         try { gatt?.close() } catch (e: Exception) {}
         gatt = null; writeCh = null; notifyCh = null
         lastCloseAt = SystemClock.elapsedRealtime()
-        synchronized(this) { ops.clear(); busy = false; lateCallbacks = 0; pendingFrame = null }
-        main.removeCallbacks(watchdog)
+        synchronized(this) { ops.clear(); busy = false; pendingFrame = null }
+        cancelWatchdog()
         main.removeCallbacks(liveness)
     }
 

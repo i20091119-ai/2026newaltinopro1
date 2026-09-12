@@ -1,3 +1,6 @@
 node_modules/
 *.log
 .DS_Store
+tools/ble-test/lib/
+tools/ble-test/out*/
+tools/ble-test/AltinoBle.kt
