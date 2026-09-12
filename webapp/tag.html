@@ -83,6 +83,9 @@
   .stat{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:10px 12px;text-align:center;min-width:88px;box-shadow:var(--shadow)}
   .stat .n{font-size:1.9rem;line-height:1}.stat .l{font-size:.78rem;color:var(--mut);margin-top:2px}
   .stat.coin .n{color:var(--sun)} .stat.goal{border-color:#ffe0a3}.stat.goal .n{color:var(--coral)}
+  .ministat{margin-top:6px;font-family:inherit;font-size:.72rem;color:var(--mut);background:#fff;
+    border:2px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer;white-space:nowrap}
+  .ministat:active{transform:translateY(1px)}
   #fuelWarn{background:#fff0f1;border:2px solid #ffc9cf;color:#c0392b;border-radius:16px;padding:10px 14px;text-align:center;font-size:1.15rem}
 
   .play{flex:1;min-height:0;display:grid;grid-template-columns:.85fr 1.3fr .85fr;gap:16px}
@@ -202,7 +205,9 @@
         <div class="gauge"><div id="energyBar"></div></div>
       </div>
       <div class="stat coin"><div class="n" id="coinVal">0</div><div class="l"><img class="ic" src="assets/coin.png"> 코인</div></div>
-      <div class="stat goal"><div class="n" id="caughtVal">0</div><div class="l"><img class="ic" src="assets/caught.png"> 잡힘 (적을수록 승리)</div></div>
+      <div class="stat goal"><div class="n" id="caughtVal">0</div><div class="l"><img class="ic" src="assets/caught.png"> 잡힘 (적을수록 승리)</div>
+        <!-- 잡힌 횟수만 0으로 (에너지·코인은 그대로) — 다음 판을 같은 학생이 이어서 할 때 -->
+        <button id="caughtReset" class="ministat">↺ 잡힘만 0</button></div>
     </div>
 
     <div id="fuelWarn" class="hidden">🔋 에너지가 없어요! 충전소에서 문제를 풀어요</div>

@@ -426,6 +426,14 @@
     bindHold($('d-right'), () => intent.steer = 127,  () => intent.steer = 0);
 
     $('upgradeBtn').addEventListener('click', buyUpgrade);
+    // 잡힌 횟수만 0으로 — 에너지·코인·속도는 유지(같은 학생이 한 판 더)
+    $('caughtReset') && $('caughtReset').addEventListener('click', () => {
+      if (caught === 0) { toast('이미 0이에요'); return; }
+      if (!confirm(`잡힌 횟수 ${caught}회를 0으로 되돌릴까요?\n(에너지·코인·속도는 그대로)`)) return;
+      caught = 0; armed = true; cooldown = 0;
+      $('caughtVal').textContent = 0; drawCount(0); saveState();
+      toast('잡힘 0으로 초기화');
+    });
     $('speedDown').addEventListener('click', () => stepSpeed(-1));
     $('speedUpBtn').addEventListener('click', () => stepSpeed(+1));
     $('dotCalBtn') && $('dotCalBtn').addEventListener('click', () => D.openCalibration({

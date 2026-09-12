@@ -16,7 +16,9 @@
   const sensor = { ir1: 999, ir2: 999, ir3: 999, ir4: 999, ir5: 999, ir6: 999, cds: 999, battery: 0 };
 
   // 학생 입력(코딩 빈칸)
-  let brightVal = 620, darkVal = 90; // ① 조도 측정 두 값
+  let rawBright = 620, rawDark = 90; // ① 조도 측정 원값
+  let brightVal = 620, darkVal = 90; // ① 나누는 수에 맞춰 반올림한 표시값
+  let lightDiv = 2;                  // ① 나누는 수(2 또는 4) — 센서가 예민하면 4로 낮춤
   let lightThresh = 355;             // ① 사이값(학생이 계산해 입력)
   let grade = null, recoverCode = null; // ② 암호(수학)
   let note1 = 37, note2 = 41, repeatN = 3; // ③ 미션1 소리(도37·미41 기본, 3회)
@@ -234,19 +236,33 @@
   }
 
   // ① 센서 숫자로 수학 — 사이값(평균) 계산
-  function updateCalc() { $('brightVal').textContent = brightVal; $('darkVal').textContent = darkVal; $('calcA').textContent = brightVal; $('calcB').textContent = darkVal; }
-  const toEven = (v) => Math.round(v / 2) * 2; // 항상 짝수로 → 사이값 나눗셈이 딱 떨어짐(초등 배려)
-  function capBright() { if (sensor.cds < 999) { brightVal = toEven(sensor.cds); updateCalc(); toast('밝은 곳 조도 = ' + brightVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
-  function capDark() { if (sensor.cds < 999) { darkVal = toEven(sensor.cds); updateCalc(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
+  function updateCalc() {
+    // 나누는 수의 배수로 맞춰 둔다 → 두 값의 합이 항상 딱 떨어져 소수점이 안 생김(초등 배려)
+    brightVal = snapDiv(rawBright); darkVal = snapDiv(rawDark);
+    $('brightVal').textContent = brightVal; $('darkVal').textContent = darkVal;
+    $('calcA').textContent = brightVal; $('calcB').textContent = darkVal;
+    if ($('calcD')) $('calcD').textContent = lightDiv;
+  }
+  const snapDiv = (v) => Math.round(v / lightDiv) * lightDiv;
+  function setLightDiv(d) {          // 2 ↔ 4 전환: 표시값·정답·입력칸을 함께 초기화
+    lightDiv = (d === 4) ? 4 : 2;
+    document.querySelectorAll('.divbtn').forEach(b => b.classList.toggle('on', +b.dataset.div === lightDiv));
+    updateCalc();
+    if ($('lightInput')) $('lightInput').value = '';
+    if ($('lightFb')) $('lightFb').textContent = '';
+    if ($('toStep2')) $('toStep2').classList.add('hidden');
+  }
+  function capBright() { if (sensor.cds < 999) { rawBright = sensor.cds; updateCalc(); toast('밝은 곳 조도 = ' + brightVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
+  function capDark() { if (sensor.cds < 999) { rawDark = sensor.cds; updateCalc(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
   function checkLight() {
     const v = parseInt($('lightInput').value, 10);
-    const exp = Math.round((brightVal + darkVal) / 2);
+    const exp = Math.round((brightVal + darkVal) / lightDiv);
     const fb = $('lightFb');
     if (isNaN(v)) { fb.textContent = '숫자를 넣어요.'; fb.style.color = 'var(--coral)'; return; }
     if (Math.abs(v - exp) <= 1) { // 두 값의 평균(±1 허용) — 좌절 방지
       lightThresh = v; fb.textContent = `정답! 터널 기준 = ${v} 🔆 — ✏️ 활동지에 쓰세요`; fb.style.color = 'var(--mint)';
       $('toStep2').classList.remove('hidden'); toast('🔆 터널 기준 완성!');
-    } else { fb.textContent = '다시 계산해 봐요. (사이값 = 두 값을 더해 2로 나누기)'; fb.style.color = 'var(--coral)'; $('toStep2').classList.add('hidden'); }
+    } else { fb.textContent = `다시 계산해 봐요. (두 값을 더해 ${lightDiv}로 나누기)`; fb.style.color = 'var(--coral)'; $('toStep2').classList.add('hidden'); }
   }
 
   // ② 암호
@@ -674,6 +690,7 @@
       try {
         const o = {}; CAL_IDS.forEach(id => { const el = $(id); if (el) o[id] = el.value; });
         const sc = $('sideOn'); if (sc) o.sideOn = sc.checked;
+        o.lightDiv = lightDiv;
         localStorage.setItem('altinoCalV1', JSON.stringify(o));
       } catch (e) {}
     }
@@ -682,10 +699,15 @@
         const o = JSON.parse(localStorage.getItem('altinoCalV1') || 'null'); if (!o) return;
         CAL_IDS.forEach(id => { const el = $(id); if (el && o[id] != null) { el.value = o[id]; el.dispatchEvent(new Event('input')); } });
         const sc = $('sideOn'); if (sc && o.sideOn != null) { sc.checked = o.sideOn; SIDE_ON = o.sideOn; }
+        if (o.lightDiv != null) setLightDiv(+o.lightDiv);
       } catch (e) {}
     }
     CAL_IDS.forEach(id => { const el = $(id); if (el) el.addEventListener('input', saveCal); });
     if (sideChk) sideChk.addEventListener('change', saveCal);
+    // ① 나누는 수(2/4) — 태블릿에 저장돼 다음 학생에게도 유지
+    document.querySelectorAll('.divbtn').forEach(b => b.addEventListener('click', () => {
+      setLightDiv(+b.dataset.div); saveCal(); toast(`나누는 수 ÷${lightDiv}`);
+    }));
     restoreCal();
     // 센서 점검
     if ($('sensorTest')) $('sensorTest').onclick = openSensorTest;

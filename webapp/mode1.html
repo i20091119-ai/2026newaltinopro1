@@ -64,6 +64,11 @@
   .calcrow{text-align:center;font-size:1.3rem;margin:10px 0 4px}
   /* ⑤ 블록 조립 */
   .hintbar{background:#fff8e8;border:2px solid #ffe0a3;border-radius:12px;padding:8px 12px;margin:6px 0 8px;font-size:.95rem;color:#7a5a10}
+  .divpick{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 2px;font-size:.9rem;color:var(--mut)}
+  .divbtn{font-family:inherit;font-size:1rem;font-weight:700;border:2px solid var(--line);background:#fff;color:var(--mut);
+    border-radius:12px;padding:6px 14px;cursor:pointer}
+  .divbtn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .divhint{font-size:.8rem}
   .slots{display:flex;flex-direction:column;gap:7px;margin:0}
   .slot{border:2px dashed var(--line);border-radius:14px;min-height:50px;display:flex;align-items:center;padding:0 10px;color:var(--mut);background:#fafafa;font-size:.9rem}
   .slot.ok{border-style:solid;border-color:var(--mint);background:#effbf6}
@@ -114,7 +119,13 @@
         <div class="mplus">＋</div>
         <div class="mcell"><div class="mlabel">터널 안 조도</div><div class="mval" id="darkVal">90</div><button class="btn ghost sm" id="capDark">📷 측정</button></div>
       </div>
-      <div class="calcrow">사이값 = ( <b id="calcA">620</b> ＋ <b id="calcB">90</b> ) ÷ 2 = ?</div>
+      <div class="calcrow">사이값 = ( <b id="calcA">620</b> ＋ <b id="calcB">90</b> ) ÷ <b id="calcD">2</b> = ?</div>
+      <!-- 조도 센서가 예민해 터널이 아닌데도 걸릴 때는 ÷4로 낮춰 기준을 더 어둡게 잡는다(강사 설정) -->
+      <div class="divpick">나누는 수
+        <button class="divbtn on" data-div="2">÷ 2</button>
+        <button class="divbtn" data-div="4">÷ 4</button>
+        <span class="divhint">터널이 아닌데 자꾸 “터널!”이면 <b>÷4</b></span>
+      </div>
       <div class="row" style="justify-content:center"><input id="lightInput" type="number" placeholder="?"><button id="lightOk" class="btn">확인</button></div>
       <div class="fb" id="lightFb" style="text-align:center"></div>
       <div class="foot"><span></span><button id="toStep2" class="btn hidden">다음 →</button></div>
