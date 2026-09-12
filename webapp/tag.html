@@ -104,8 +104,12 @@
   .sbtn:active{transform:translateY(2px)}
   .sbtn:disabled{opacity:.35;box-shadow:none}
 
-  details.viewer{background:#fff;border:2px solid var(--line);border-radius:18px;padding:10px 14px;box-shadow:var(--shadow)}
+  details.viewer{background:#fff;border:2px solid var(--line);border-radius:18px;padding:10px 14px;box-shadow:var(--shadow);flex:none}
   details.viewer summary{cursor:pointer;color:var(--mut)}
+  /* 펼치면 화면 위로 뜨는 패널로 — 인라인으로 펼치면 조종 영역(속도업 등)과 겹쳤음 */
+  details.viewer[open]{position:fixed;left:20px;right:20px;bottom:14px;max-height:76vh;overflow:auto;z-index:55;
+    box-shadow:0 -10px 34px rgba(120,90,50,.28)}
+  details.viewer[open] summary{position:sticky;top:-10px;background:#fff;padding:4px 0;z-index:1}
   .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
   .s{background:var(--sky);border:2px solid #dcefff;border-radius:12px;padding:8px}
   .s .l{font-size:.72rem;color:var(--mut)}.s .v{font-size:1.1rem}
