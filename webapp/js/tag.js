@@ -362,15 +362,20 @@
 
   // ---- 진행 상태 저장/복원 (연결 끊겨 앱 재시작해도 에너지·코인·속도업 유지) ----
   const SAVE_KEY = 'altinoTagV1';
+  // 저장이 이만큼 오래되면 '다음 학생'으로 보고 이어하기를 제안하지 않는다.
+  // (앞 학생 기록이 계속 떠 있어 헷갈리는 것 방지)
+  const RESUME_TTL_MS = 20 * 60 * 1000;   // 20분
   let saveTick = 0;
   function saveState() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ e: Math.round(energy), c: coins, s: speedTier, mx: maxTier, ca: caught, g: selectedGrade })); } catch (e) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ e: Math.round(energy), c: coins, s: speedTier, mx: maxTier, ca: caught, g: selectedGrade, t: Date.now() })); } catch (e) {}
   }
   function clearState() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
   function restoreState() {
     try {
       const o = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       if (!o || !o.g) return false;
+      // 시각이 없거나(구버전 저장) 20분이 지났으면 이어하기 대상이 아니다 → 저장 삭제
+      if (!o.t || (Date.now() - o.t) > RESUME_TTL_MS) { clearState(); return false; }
       energy = (o.e != null) ? o.e : 500;
       coins = o.c || 0;
       speedTier = Math.min(o.s || 0, SPEED_TIERS.length - 1);
