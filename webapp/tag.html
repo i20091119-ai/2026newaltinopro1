@@ -173,7 +173,12 @@
       <button class="g8" data-grade="m2">중2<small>함수·부등식</small></button>
       <button class="g9" data-grade="m3">중3<small>제곱근·이차식</small></button>
     </div>
-    <p class="sub" style="margin-top:16px">🏆 가장 적게 잡힌 사람이 이겨요!</p>
+    <!-- 저장된 진행이 있을 때만 표시. 예전엔 자동으로 게임화면으로 넘어가 버려서
+         홈에서 들어오면 학년 선택이 1초 뜨고 사라지는 것처럼 보였다. -->
+    <button id="resumeBtn" class="btn mint hidden" style="margin-top:16px;font-size:1.15rem;padding:14px 26px">
+      ⏯ 하던 판 이어서 하기 <span id="resumeInfo" style="font-weight:400;font-size:.9rem"></span>
+    </button>
+    <p class="sub" style="margin-top:14px">🏆 가장 적게 잡힌 사람이 이겨요!</p>
   </section>
 
   <!-- ===== 게임 화면 ===== -->

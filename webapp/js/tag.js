@@ -24,7 +24,7 @@
   let coins = 0;
   let speedTier = 0;        // 현재 속도 단계
   let maxTier = 0;          // 구매한 최고 단계 — 이 범위 안에서는 ± 무료
-  const SPEED_TIERS = [350, 400, 450, 500, 550];   // 초기 350, 업그레이드마다 +50, 상한 550
+  const SPEED_TIERS = [330, 360, 390, 420, 450];   // 업그레이드마다 +30, 상한 450(현장 요청)
   const UPGRADE_COST = [2, 3, 4, 5];   // tier 0→1,1→2,2→3,3→4 비용(코인)
   const speedNow = () => SPEED_TIERS[speedTier];
 
@@ -41,6 +41,9 @@
 
   // ---- 선택 학년 (시작 화면에서 결정) ----
   let selectedGrade = 'e3';
+  // 게임 안 '학년 바꾸기'로 온 것인지 구분 — 그때만 진행(에너지·코인)을 유지한다.
+  // 홈에서 새로 들어와 학년을 고르면 '다음 학생'이므로 새 판으로 시작.
+  let changingGrade = false;
 
   // ---- 효과음 (합성 WAV) ----
   const SFX = {};
@@ -379,15 +382,25 @@
     } catch (e) { return false; }
   }
 
-  function pickGrade(g) {
-    unlockAudio();
-    selectedGrade = g;
-    const L = window.AltinoProblems.GRADE_LABELS[g] || g;
+  function enterGame() {
+    const L = window.AltinoProblems.GRADE_LABELS[selectedGrade] || selectedGrade;
     if ($('gradeLabel')) $('gradeLabel').textContent = L;
     $('startScreen').classList.add('hidden');
     $('gameScreen').classList.remove('hidden');
-    drawCount(caught);   // 도트매트릭스에 현재 잡힌 횟수 표시(이어하기 시 유지)
+    $('caughtVal').textContent = caught;
+    updateEnergyUI(); updateShopUI();
+    drawCount(caught);   // 도트매트릭스에 현재 잡힌 횟수
     saveState();
+  }
+  function pickGrade(g) {
+    unlockAudio();
+    selectedGrade = g;
+    if (!changingGrade) {        // 홈에서 새로 들어옴 = 다음 학생 → 새 판
+      caught = 0; energy = 500; coins = 0; speedTier = 0; maxTier = 0;
+      clearState();
+    }
+    changingGrade = false;
+    enterGame();
   }
 
   function init() {
@@ -397,6 +410,7 @@
     });
     $('changeGradeBtn') && $('changeGradeBtn').addEventListener('click', () => {
       intent.drive = 0; intent.steer = 0;        // 손 떼지 않고 눌러도 차가 멈추도록
+      changingGrade = true;                      // 같은 학생이 난이도만 바꾸는 것 → 진행 유지
       $('gameScreen').classList.add('hidden');
       $('startScreen').classList.remove('hidden');
     });
@@ -454,15 +468,16 @@
     window.addEventListener('blur', () => { intent.drive = 0; saveState(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { intent.drive = 0; saveState(); } });
 
-    // 저장된 진행이 있으면 이어서(에너지·코인·속도업 유지). 없으면 학년 선택 화면.
+    // 저장된 진행이 있어도 '자동으로' 게임화면에 들어가지 않는다.
+    // (예전엔 자동 진입이라 홈→꼬리잡기 시 학년 선택이 잠깐 떴다 사라져 오류처럼 보였다)
+    // 대신 시작 화면에 '이어서 하기' 버튼을 띄워 운영자가 고르게 한다.
     if (restoreState()) {
-      const L = window.AltinoProblems.GRADE_LABELS[selectedGrade] || selectedGrade;
-      if ($('gradeLabel')) $('gradeLabel').textContent = L;
-      $('startScreen').classList.add('hidden');
-      $('gameScreen').classList.remove('hidden');
-      $('caughtVal').textContent = caught;
-      drawCount(caught);
-      toast('이어서 진행! ⚡ 에너지·코인 유지 (새 판은 아래 버튼)');
+      const r = $('resumeBtn');
+      if (r) {
+        r.classList.remove('hidden');
+        $('resumeInfo').textContent = `(에너지 ${Math.round(energy)} · 코인 ${coins} · 잡힘 ${caught})`;
+        r.addEventListener('click', () => { unlockAudio(); enterGame(); });
+      }
     }
 
     updateEnergyUI();
