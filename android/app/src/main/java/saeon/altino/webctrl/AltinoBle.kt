@@ -517,6 +517,12 @@ class AltinoBle(
     @JavascriptInterface
     fun openBluetoothSettings() { try { onOpenSettings() } catch (e: Exception) {} }
 
+    /** 설치된 APK 버전 — 태블릿 12대 중 어느 것이 최신인지 화면에서 바로 확인용. */
+    @JavascriptInterface
+    fun getAppVersion(): String = try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+    } catch (e: Exception) { "" }
+
     @SuppressLint("MissingPermission")
     private fun closeGatt() {
         try { gatt?.disconnect() } catch (e: Exception) {}

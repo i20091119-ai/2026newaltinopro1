@@ -13,12 +13,29 @@ android {
         // targetSdk 34: 안드로이드 12+ 에서 neverForLocation 이 실제 적용되어
         // 위치 권한 없이 BLE 스캔이 정상 동작(부스 태블릿 스캔 0건 문제 해결).
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        // 빌드마다 증가(-PbuildNumber=<n>, CI가 실행번호를 넘김). 로컬 빌드는 1.
+        versionCode (project.findProperty('buildNumber') ?: '1').toString().toInteger()
+        versionName "1.0.${project.findProperty('buildNumber') ?: '0'}"
+    }
+
+    // ⚠ 고정 서명키 — 기기에 이미 깔린 앱 위에 '덮어쓰기 업데이트'가 되려면
+    // 모든 빌드의 서명이 같아야 한다. 기본 debug 서명은 CI 러너마다 키가 새로
+    // 생성되어 서명이 매번 달라지고, 그래서 지우고 다시 깔아야 했다.
+    signingConfigs {
+        altino {
+            storeFile file('altino.keystore')
+            storePassword 'altino2026'
+            keyAlias 'altino'
+            keyPassword 'altino2026'
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.altino
+        }
         release {
+            signingConfig signingConfigs.altino
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

@@ -34,11 +34,12 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        # buildNumber: 실행번호를 versionCode 로 사용 → 기기에서 '업데이트'로 인식됨
+        run: ./gradlew assembleDebug --no-daemon --stacktrace -PbuildNumber=${{ github.run_number }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: altino-webctrl-debug-apk
+          name: altino-webctrl-apk-v1.0.${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
