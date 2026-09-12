@@ -276,9 +276,6 @@
   // ① 센서 숫자로 수학 — 사이값(평균) 계산
   // 조도값이 30 밑으로는 안 내려가게 보정되므로(onSensor), 기준이 40 밑이면 영영 안 걸린다.
   const LIGHT_MIN_USABLE = 40;
-  // 터널을 '빠져나왔다'고 볼 여유분. 코스 밖은 보통 600 이상, 기준은 350 안팎이라
-  // 이 정도면 노이즈로 오판할 일이 없다.
-  const LIGHT_HYST = 20;
   function expectedLight() { return Math.round((brightVal + darkVal) / lightDiv); }
   function updateCalc() {
     // 나누는 수의 배수로 맞춰 둔다 → 두 값의 합이 항상 딱 떨어져 소수점이 안 생김(초등 배려)
@@ -596,22 +593,16 @@
       await soundMission(gen);
       if (!alive(gen)) return;
 
-      // 두 번째 '어두움'까지 벽추종 → 미션2(배송지 문자)
-      // ⚠ 코스에 터널은 하나뿐이고, 차는 그 터널을 지나 한 바퀴 돌아 같은 터널로 다시 들어온다.
-      //   그런데 미션1(소리)을 부르는 동안 차는 '터널 입구에 선 채'다 — 아직 어둡다.
-      //   예전엔 '2초만 지나면 다시 어두워도 도착'이라 터널이 길거나 속도를 낮추면
-      //   그 자리에서 곧바로 '배송 완료'가 떠 버렸다(첫 터널 안에서 끝남).
-      //   → 한 번 밝은 데로 나온 적이 있어야(=터널을 빠져나와야) 도착 판정을 켠다.
-      //   판정 기준값(조도 < 터널 기준)은 그대로다. '언제부터 볼지'만 늦춘 것.
-      let leftTunnel = false;
+      // 도착 판정까지 벽추종 → 미션2(배송지 문자)
+      // ■ 코스 구조(현장 확인): n자 코스이고 터널은 '끝에 하나'뿐. 재진입은 없다.
+      //   그래서 이 활동에서 어두워지는 사건은 딱 한 번이고, 두 미션이 그 한 터널 안에서
+      //   연달아 일어난다 — 입구에서 미션1(소리), 2초 뒤 같은 터널 안에서 미션2(도착).
+      //   '2초 경과' 는 미션1과 미션2가 같은 순간에 겹쳐 터지지 않게 띄워 두는 간격이다.
+      // ⚠ 여기를 '한 번 밝아진 뒤 다시 어두워질 것'으로 바꾸면 안 된다.
+      //   터널이 끝이라 그 뒤로 다시 어두워질 일이 없어 25초를 헤매다 실패한다.
+      //   (실제로 그렇게 고쳤다가 되돌린 자리다 — 터널을 두 번 지난다고 잘못 알았다)
       const t0 = Date.now();
-      if (!await driveUntil(() => {
-            if (!leftTunnel) {
-              if (sensor.cds >= lightThresh + LIGHT_HYST) leftTunnel = true;
-              return false;
-            }
-            return sensor.cds < lightThresh && Date.now() - t0 > 2000;
-          }, gen)) {
+      if (!await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000, gen)) {
         if (alive(gen)) toast('⏱ 도착 지점을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
         return;
       }
