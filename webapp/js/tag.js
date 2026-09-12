@@ -351,6 +351,12 @@
     scanner.on('scan', addDev);
     scanner.startScan();
   }
+  // 블루투스/위치 권한을 방금 허용했다면 스캔을 다시 건다.
+  // (첫 실행: 권한 없이 스캔 → 0건 → 허용 → 아무도 다시 안 걸어 목록이 계속 비어 있었다)
+  window.__altinoOnPermission = function (granted) {
+    if (!granted) { toast('블루투스 권한이 없으면 로봇을 찾을 수 없어요'); return; }
+    try { if (scanner) startScanning(); } catch (e) {}
+  };
   function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} try { scanner.detach(); } catch (e) {} scanner = null; } }
   function renderDevList() {
     const list = $('devList'); const q = ($('devSearch').value || '').trim().toLowerCase();

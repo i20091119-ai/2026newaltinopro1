@@ -127,7 +127,15 @@ class AltinoBle(
     private val ops = ArrayDeque<Op>()
     private var busy = false
     private var pendingFrame: ByteArray? = null
-    private val watchdog = Runnable { Log.w(TAG, "op timeout → skip"); synchronized(this) { busy = false; pump() } }
+    // ⚠ 워치독이 한 번 '건너뛰기'를 하면, 그 op 의 진짜 콜백이 뒤늦게 도착한다.
+    //   예전엔 그 늦은 콜백이 opDone() 을 불러 '지금 진행 중인 다른 op' 를 완료 처리해 버렸다
+    //   → 큐가 한 칸 앞질러 나가면서 두 op 가 동시에 떠 있게 되고, 스택이 뒤엣것을 버린다.
+    //   (조향 프레임이 가끔 씹히던 경로) 건너뛴 횟수를 세어 늦은 콜백을 삼킨다.
+    private var lateCallbacks = 0
+    private val watchdog = Runnable {
+        Log.w(TAG, "op timeout → skip")
+        synchronized(this) { if (busy) { lateCallbacks++; busy = false; pump() } }
+    }
 
     // ---- 좀비(반열림) 링크 감지 ----
     // '연결됨'인데 로봇이 실제론 죽은 상태(전파 간섭·로봇 리셋)를 OS 타임아웃보다 먼저 잡는다.
@@ -309,7 +317,7 @@ class AltinoBle(
             // 대기하는 사이에 사용자가 해제/짝변경을 했을 수 있다. 확인하지 않으면
             // 해제한 로봇에 계속 붙어 있어 다른 태블릿도 그 로봇을 못 쓴다.
             if (!wantConnect || boundAddress != address) { connecting = false; return@postDelayed }
-            synchronized(this) { ops.clear(); busy = false; pendingFrame = null; negotiatedMtu = 23 }
+            synchronized(this) { ops.clear(); busy = false; lateCallbacks = 0; pendingFrame = null; negotiatedMtu = 23 }
             try {
                 val g = dev.connectGatt(context, autoConnect, gattCb, BluetoothDevice.TRANSPORT_LE)
                 if (g == null) { connecting = false; status("disconnected:connect-failed"); scheduleReconnect(); return@postDelayed }
@@ -483,6 +491,8 @@ class AltinoBle(
     }
 
     @Synchronized private fun opDone() {
+        // 워치독이 이미 넘긴 op 의 뒤늦은 콜백이면, 지금 떠 있는 op 를 건드리지 않고 버린다.
+        if (lateCallbacks > 0) { lateCallbacks--; return }
         main.removeCallbacks(watchdog)
         busy = false
         pump()
@@ -599,7 +609,7 @@ class AltinoBle(
         try { gatt?.close() } catch (e: Exception) {}
         gatt = null; writeCh = null; notifyCh = null
         lastCloseAt = SystemClock.elapsedRealtime()
-        synchronized(this) { ops.clear(); busy = false; pendingFrame = null }
+        synchronized(this) { ops.clear(); busy = false; lateCallbacks = 0; pendingFrame = null }
         main.removeCallbacks(watchdog)
         main.removeCallbacks(liveness)
     }

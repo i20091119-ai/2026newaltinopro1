@@ -276,6 +276,9 @@
   // ① 센서 숫자로 수학 — 사이값(평균) 계산
   // 조도값이 30 밑으로는 안 내려가게 보정되므로(onSensor), 기준이 40 밑이면 영영 안 걸린다.
   const LIGHT_MIN_USABLE = 40;
+  // 터널을 '빠져나왔다'고 볼 여유분. 코스 밖은 보통 600 이상, 기준은 350 안팎이라
+  // 이 정도면 노이즈로 오판할 일이 없다.
+  const LIGHT_HYST = 20;
   function expectedLight() { return Math.round((brightVal + darkVal) / lightDiv); }
   function updateCalc() {
     // 나누는 수의 배수로 맞춰 둔다 → 두 값의 합이 항상 딱 떨어져 소수점이 안 생김(초등 배려)
@@ -593,9 +596,22 @@
       await soundMission(gen);
       if (!alive(gen)) return;
 
-      // 터널2까지(조도<조도값 & 2초 경과) 벽추종 → 미션2(문자)
+      // 두 번째 '어두움'까지 벽추종 → 미션2(배송지 문자)
+      // ⚠ 코스에 터널은 하나뿐이고, 차는 그 터널을 지나 한 바퀴 돌아 같은 터널로 다시 들어온다.
+      //   그런데 미션1(소리)을 부르는 동안 차는 '터널 입구에 선 채'다 — 아직 어둡다.
+      //   예전엔 '2초만 지나면 다시 어두워도 도착'이라 터널이 길거나 속도를 낮추면
+      //   그 자리에서 곧바로 '배송 완료'가 떠 버렸다(첫 터널 안에서 끝남).
+      //   → 한 번 밝은 데로 나온 적이 있어야(=터널을 빠져나와야) 도착 판정을 켠다.
+      //   판정 기준값(조도 < 터널 기준)은 그대로다. '언제부터 볼지'만 늦춘 것.
+      let leftTunnel = false;
       const t0 = Date.now();
-      if (!await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000, gen)) {
+      if (!await driveUntil(() => {
+            if (!leftTunnel) {
+              if (sensor.cds >= lightThresh + LIGHT_HYST) leftTunnel = true;
+              return false;
+            }
+            return sensor.cds < lightThresh && Date.now() - t0 > 2000;
+          }, gen)) {
         if (alive(gen)) toast('⏱ 도착 지점을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
         return;
       }
@@ -665,6 +681,12 @@
 
   // ---- BLE 무페어링 스캔 피커 (동적 오버레이) ----
   let scanner = null, scanDevs = [];
+  // 블루투스/위치 권한을 방금 허용했다면 스캔을 다시 건다.
+  // (첫 실행: 권한 없이 스캔 → 0건 → 허용 → 아무도 다시 안 걸어 목록이 계속 비어 있었다)
+  window.__altinoOnPermission = function (granted) {
+    if (!granted) { toast('블루투스 권한이 없으면 로봇을 찾을 수 없어요'); return; }
+    try { if (scanner) scanner.startScan(); } catch (e) {}
+  };
   function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} try { scanner.detach(); } catch (e) {} scanner = null; } }
   function pickAndConnect() {
     if (!T.AndroidBridgeTransport.supported) { connect('mock'); return; }

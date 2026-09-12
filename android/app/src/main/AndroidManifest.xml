@@ -18,8 +18,11 @@
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
 
+    <!-- allowBackup=false: 이 앱의 SharedPreferences 에는 '이 태블릿이 짝지은 로봇 MAC'이
+         들어 있다. 백업/복원이나 기기 간 이전으로 그 값이 따라가면, 새 태블릿이 남의
+         로봇에 붙어 버린다(12대가 서로 엉킴). 복원할 값도 아니다. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"

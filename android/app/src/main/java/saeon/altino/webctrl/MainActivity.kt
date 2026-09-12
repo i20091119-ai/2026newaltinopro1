@@ -108,6 +108,21 @@ class MainActivity : AppCompatActivity() {
         if (need.isNotEmpty()) ActivityCompat.requestPermissions(this, need.toTypedArray(), 1)
     }
 
+    /** 권한 허용 결과.
+     *  ⚠ 이게 없으면 첫 실행이 이렇게 흘러간다: 앱이 뜨자마자 웹이 스캔을 시작 → 아직
+     *  권한이 없어 0건 → 그 사이 학생/교사가 권한을 '허용' → 그런데 아무도 다시 스캔하지
+     *  않아 목록이 계속 비어 있다. 해설사 눈에는 '로봇이 안 잡히는 앱'으로 보인다.
+     *  허용된 순간 웹에 알려 스캔을 다시 걸게 한다. */
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != 1) return
+        val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+        web.post {
+            web.evaluateJavascript(
+                "if(window.__altinoOnPermission)window.__altinoOnPermission($granted);", null)
+        }
+    }
+
     override fun onDestroy() {
         try { ble.disconnect() } catch (_: Exception) {}
         try { ble.release() } catch (_: Exception) {}   // 리시버 해제(누수·유령 복구 방지)
