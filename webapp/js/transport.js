@@ -99,26 +99,51 @@ class MockTransport extends BaseTransport {
 //   JS -> 네이티브 : AltinoNative.sendFrame(base64) 로 26바이트 프레임 전송
 class AndroidBridgeTransport extends BaseTransport {
   static get supported() { return typeof window !== 'undefined' && !!window.AltinoNative; }
+  // ⚠ 전역 콜백(__altinoOnData/Status/Scan)은 window 에 하나뿐이다.
+  //   예전엔 새 인스턴스를 만들 때마다 이 전역을 덮어써서, 연결창을 한 번 열면
+  //   (연결창이 스캔 전용 transport 를 새로 만든다) 살아있던 게임 쪽 transport 의
+  //   센서 수신이 영구히 끊겼다 — 화면엔 '연결됨'인데 잡힘 판정·배터리·IR 이 전부 정지.
+  //   그래서 전역에는 '중계기'만 한 번 설치하고, 실제 배달은 아래 규칙으로 한다.
+  //     data/status → _active (연결을 소유한 인스턴스) 에게만
+  //     scan        → _attach 된 모든 인스턴스에게 (연결창도 결과를 받아야 하므로)
   _attach() {
-    if (this._attached) return; this._attached = true;
+    const C = AndroidBridgeTransport;
+    C._all.add(this);
+    if (C._installed) return; C._installed = true;
     window.__altinoOnData = (b64) => {
+      const t = C._active; if (!t) return;
       const bin = atob(b64); const u = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-      this._emit('data', u);
+      t._emit('data', u);
     };
     window.__altinoOnStatus = (s) => {
-      this.connected = (s === 'connected');
-      this._emit('status', s);
+      const t = C._active; if (!t) return;
+      // ⚠ 'scanning' · 'error:busy' 같은 진행중 알림까지 연결끊김으로 처리하면
+      //   스스로 재연결 루프를 만든다. 확정 신호일 때만 connected 를 바꾼다.
+      if (s === 'connected') t.connected = true;
+      else if (s === 'disconnected' || s === 'error:no-bound' || s === 'error:location-off'
+               || s === 'error:bt-off' || s === 'error:not-found') t.connected = false;
+      t._emit('status', s);
     };
     // BLE 스캔 결과(무페어링) — 기기 발견마다 호출
     window.__altinoOnScan = (json) => {
       let d; try { d = JSON.parse(json); } catch (e) { return; }
-      if (d && d.address) this._emit('scan', d);
+      if (!d || !d.address) return;
+      C._all.forEach((t) => t._emit('scan', d));
     };
+  }
+  // 이 인스턴스를 '연결 소유자'로 지정 — connect/connectTo/adopt 에서만 호출
+  _claim() { this._attach(); AndroidBridgeTransport._active = this; }
+  // 더 이상 쓰지 않는 인스턴스는 반드시 떼어낸다(연결창 닫기 등).
+  // 안 떼면 네이티브 자동재연결 데이터가 유령 인스턴스로 흘러들어간다.
+  detach() {
+    const C = AndroidBridgeTransport;
+    C._all.delete(this);
+    if (C._active === this) C._active = null;
   }
   // BLE 스캔 시작 — 발견 기기는 on('scan', {name,address,rssi}) 로 전달
   startScan() {
-    this._attach();
+    this._attach();   // 스캔은 _attach 만 — _claim 하지 않는다(살아있는 연결을 뺏지 않도록)
     try { if (window.AltinoNative.startScan) window.AltinoNative.startScan(); else window.AltinoNative.listDevices(); } catch (e) {}
   }
   stopScan() { try { if (window.AltinoNative.stopScan) window.AltinoNative.stopScan(); } catch (e) {} }
@@ -132,19 +157,19 @@ class AndroidBridgeTransport extends BaseTransport {
   }
   async connect() { // 바인딩된(이전에 고른) 로봇에만 연결. 없으면 error:no-bound.
     if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입(래퍼 앱 아님)');
-    this._attach();
+    this._claim();
     if (typeof window.AltinoNative.connect === 'function') window.AltinoNative.connect();
     // 실제 연결 확정은 네이티브의 __altinoOnStatus('connected') 콜백에서
   }
   // 네이티브 연결 상태 조회(페이지 이동해도 네이티브 GATT는 살아있음)
   state() { try { return JSON.parse(window.AltinoNative.getState() || '{}'); } catch (e) { return {}; } }
   // 이미 연결된 네이티브 링크를 '입양'(재연결 없이 콜백만 재바인딩)
-  adopt() { this._attach(); this.connected = true; this._emit('status', 'connected'); }
+  adopt() { this._claim(); this.connected = true; this._emit('status', 'connected'); }
   // 바인딩 해제('다른 로봇 선택')
   unbind() { try { if (window.AltinoNative.unbind) window.AltinoNative.unbind(); } catch (e) {} this.connected = false; }
   async connectTo(address) { // 특정 MAC으로 연결(다중 기기 선택)
     if (!AndroidBridgeTransport.supported) throw new Error('AltinoNative 미주입');
-    this._attach();
+    this._claim();
     if (typeof window.AltinoNative.connectTo === 'function') window.AltinoNative.connectTo(address);
   }
   async send(u8) {
@@ -154,8 +179,12 @@ class AndroidBridgeTransport extends BaseTransport {
   async disconnect() {
     try { if (window.AltinoNative && window.AltinoNative.disconnect) window.AltinoNative.disconnect(); } catch (e) {}
     this.connected = false; this._emit('status', 'disconnected');
+    this.detach();
   }
 }
+AndroidBridgeTransport._all = new Set();
+AndroidBridgeTransport._active = null;
+AndroidBridgeTransport._installed = false;
 
 const AltinoTransport = { WebSocketTransport, WebSerialTransport, AndroidBridgeTransport, MockTransport };
 if (typeof window !== 'undefined') window.AltinoTransport = AltinoTransport;

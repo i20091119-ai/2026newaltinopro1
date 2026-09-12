@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 내려받은 apk 를 패키지 설치 화면에 넘겨주기 위한 FileProvider 경로.
+     file:// URI 를 직접 넘기면 안드로이드 7+ 에서 FileUriExposedException 으로 죽는다. -->
+<paths>
+    <external-files-path name="update" path="." />
+    <files-path name="internal" path="." />
+</paths>

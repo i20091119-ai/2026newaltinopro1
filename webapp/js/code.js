@@ -548,7 +548,7 @@
 
   // ---- BLE 무페어링 스캔 피커 (동적 오버레이) ----
   let scanner = null, scanDevs = [];
-  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} scanner = null; } }
+  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} try { scanner.detach(); } catch (e) {} scanner = null; } }
   function pickAndConnect() {
     if (!T.AndroidBridgeTransport.supported) { connect('mock'); return; }
     scanDevs = [];

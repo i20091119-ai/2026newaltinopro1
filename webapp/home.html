@@ -85,7 +85,12 @@
 
   <a class="deepen" href="park.html">🅿️ <b>정밀 주차 챌린지</b> <span>· 다 끝낸 친구를 위한 5분 심화 도전 →</span></a>
 
-  <div class="foot"><a href="index.html">조종 패널(개발용)</a> <span id="appVer" style="margin-left:10px;opacity:.7"></span></div>
+  <div class="foot">
+    <a href="index.html">조종 패널(개발용)</a>
+    <span id="appVer" style="margin-left:10px;opacity:.7"></span>
+    <button id="updBtn" type="button" style="margin-left:10px;border:2px solid var(--line);background:#fff;
+      color:var(--ink);border-radius:999px;padding:5px 14px;font-family:inherit;font-size:.9rem;cursor:pointer">🔄 업데이트 확인</button>
+  </div>
   <script>
     // 설치된 APK 버전 표시 — 여러 태블릿의 업데이트 여부를 눈으로 확인
     try {
@@ -93,6 +98,7 @@
       if (v) document.getElementById('appVer').textContent = 'v' + v;
     } catch (e) {}
   </script>
+  <script src="js/update.js"></script>
 </body>
 </html>
 

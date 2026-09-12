@@ -13,6 +13,9 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch: {}   # 수동 실행 버튼
 
+permissions:
+  contents: write        # 릴리스 생성(앱 안 업데이트가 여기서 apk 를 받아간다)
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,3 +46,22 @@ jobs:
           name: altino-webctrl-apk-v1.0.${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # 앱 안 '업데이트 확인' 버튼이 읽는 배포처.
+      # 저장소가 공개라 태블릿은 로그인·토큰 없이 apk 를 받을 수 있다.
+      # ⚠ 태그를 버전마다 새로 만든다(고정 태그면 URL이 같아 CDN이 옛 apk 를 캐시할 수 있음).
+      - name: Publish GitHub Release
+        if: github.ref_name == 'claude/tablet-webapp-altino-control-l1pngm'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.run_number }}
+        run: |
+          set -e
+          SRC=android/app/build/outputs/apk/debug/app-debug.apk
+          OUT="altino-v1.0.${RUN}.apk"
+          cp "$SRC" "$OUT"
+          NOTES=$(git log -1 --pretty=%B)
+          gh release create "v1.0.${RUN}" "$OUT" \
+            --title "알티노 태블릿 앱 v1.0.${RUN}" \
+            --notes "$NOTES" \
+            --latest

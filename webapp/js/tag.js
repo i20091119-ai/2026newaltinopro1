@@ -303,7 +303,7 @@
     scanner.on('scan', addDev);
     scanner.startScan();
   }
-  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} scanner = null; } }
+  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} try { scanner.detach(); } catch (e) {} scanner = null; } }
   function renderDevList() {
     const list = $('devList'); const q = ($('devSearch').value || '').trim().toLowerCase();
     list.innerHTML = '';

@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
     private lateinit var ble: AltinoBle
+    private lateinit var updater: AltinoUpdate
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +67,11 @@ class MainActivity : AppCompatActivity() {
             { try { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) } catch (e: Exception) {} },
         )
         web.addJavascriptInterface(ble, "AltinoNative")
+
+        // 앱 안 업데이트(홈 화면 '업데이트 확인' 버튼) — GitHub Releases 에서 최신 apk 를
+        // 받아 덮어쓰기 설치. 태블릿마다 지우고 다시 까는 작업을 없애기 위함.
+        updater = AltinoUpdate(this) { js -> web.post { web.evaluateJavascript(js, null) } }
+        web.addJavascriptInterface(updater, "AltinoUpdate")
 
         // 상태바만 숨겨 몰입감을 유지하되(키보드 동작을 막는 windowFullscreen 대신),
         // 키보드가 뜨면 화면이 줄어들도록 한다.

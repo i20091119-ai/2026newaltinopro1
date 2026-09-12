@@ -108,7 +108,7 @@
   // ★ 공통: 스캔 피커 — 스티커번호 ⟨BF16⟩ 표시 + 1:1 짝 잠금 + 짝 해제 (수정 금지)
   // ───────────────────────────────────────────────
   let scanner = null, scanDevs = [];
-  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} scanner = null; } }
+  function stopScanning() { if (scanner) { try { scanner.stopScan(); } catch (e) {} try { scanner.detach(); } catch (e) {} scanner = null; } }
   function pickAndConnect() {
     if (!T.AndroidBridgeTransport.supported) { connect('mock'); return; }
     scanDevs = [];
