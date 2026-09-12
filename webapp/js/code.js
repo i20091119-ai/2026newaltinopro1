@@ -567,7 +567,11 @@
       document.body.appendChild(ov);
       ov.querySelector('#scanClose').onclick = () => { stopScanning(); ov.classList.add('hidden'); };
       ov.querySelector('#scanSettings').onclick = () => { try { new T.AndroidBridgeTransport().openSettings(); } catch (e) {} };
-      ov.querySelector('#scanUnbind').onclick = () => { try { new T.AndroidBridgeTransport().unbind(); } catch (e) {} toast('짝 해제됨 — 새 로봇을 고르세요'); renderScan(); };
+      ov.querySelector('#scanUnbind').onclick = async () => {
+        if (!await AltinoUI.confirm({ title: '이 태블릿의 짝을 해제할까요?',
+          lines: ['지금 연결된 로봇과의 짝이 풀리고 연결이 끊겨요.', '다른 로봇을 새로 골라야 해요.'],
+          okText: '네, 짝 해제' })) return;
+        try { new T.AndroidBridgeTransport().unbind(); } catch (e) {} toast('짝 해제됨 — 새 로봇을 고르세요'); renderScan(); };
       ov.querySelector('#scanSearch').addEventListener('input', renderScan);
     }
     ov.classList.remove('hidden');

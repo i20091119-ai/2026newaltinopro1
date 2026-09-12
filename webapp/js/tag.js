@@ -427,9 +427,13 @@
 
     $('upgradeBtn').addEventListener('click', buyUpgrade);
     // 잡힌 횟수만 0으로 — 에너지·코인·속도는 유지(같은 학생이 한 판 더)
-    $('caughtReset') && $('caughtReset').addEventListener('click', () => {
+    $('caughtReset') && $('caughtReset').addEventListener('click', async () => {
       if (caught === 0) { toast('이미 0이에요'); return; }
-      if (!confirm(`잡힌 횟수 ${caught}회를 0으로 되돌릴까요?\n(에너지·코인·속도는 그대로)`)) return;
+      if (!await AltinoUI.confirm({
+        title: '잡힌 횟수를 0으로 되돌릴까요?',
+        lines: [`지금 잡힌 횟수: ${caught}회`, '에너지·코인·속도는 그대로 유지돼요.'],
+        okText: '네, 0으로',
+      })) return;
       caught = 0; armed = true; cooldown = 0;
       $('caughtVal').textContent = 0; drawCount(0); saveState();
       toast('잡힘 0으로 초기화');
@@ -450,9 +454,13 @@
     $('probInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkProblem(); });
     $('probClose').addEventListener('click', () => $('repairModal').classList.add('hidden'));
     // 새 판: 진행이 있으면 반드시 확인 — 게임 중 오터치로 기록이 날아가던 사고 방지
-    $('resetBtn').addEventListener('click', () => {
-      const hasProgress = caught > 0 || coins > 0 || maxTier > 0;
-      if (hasProgress && !confirm(`새 판을 시작하면 지금까지의 기록이 사라져요.\n\n· 잡힌 횟수 ${caught}회\n· 코인 ${coins}개\n· 속도 ${speedNow()}\n\n정말 새로 시작할까요?`)) return;
+    $('resetBtn').addEventListener('click', async () => {
+      if (!await AltinoUI.confirm({
+        title: '새 판을 시작할까요?',
+        lines: ['지금까지의 기록이 모두 사라져요.',
+                `· 잡힌 횟수 ${caught}회   · 코인 ${coins}개   · 속도 ${speedNow()}`],
+        okText: '네, 새 판 시작',
+      })) return;
       caught = 0; energy = 500; coins = 0; speedTier = 0; maxTier = 0;
       clearState();   // 새 판 = 저장된 진행 삭제(다음 학생은 처음부터)
       $('caughtVal').textContent = 0; updateEnergyUI(); updateShopUI(); drawCount(0); toast('새 판 시작!');
@@ -468,7 +476,12 @@
     $('connRefresh').addEventListener('click', openConn);
     $('connMock').addEventListener('click', () => { connect('mock'); closeConn(); });
     $('connDisc').addEventListener('click', () => { disconnect(); openConn(); });
-    $('connUnbind') && $('connUnbind').addEventListener('click', () => {
+    $('connUnbind') && $('connUnbind').addEventListener('click', async () => {
+      if (!await AltinoUI.confirm({
+        title: '이 태블릿의 짝을 해제할까요?',
+        lines: ['지금 연결된 로봇과의 짝이 풀리고 연결이 끊겨요.', '다른 로봇을 새로 골라야 해요.'],
+        okText: '네, 짝 해제',
+      })) return;
       try { new T.AndroidBridgeTransport().unbind(); } catch (e) {}
       disconnect(); toast('짝 해제됨 — 새 로봇을 고르세요'); renderDevList();
     });

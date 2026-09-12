@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import android.os.Bundle
 import android.view.WindowManager
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
@@ -39,6 +40,10 @@ class MainActivity : AppCompatActivity() {
             mediaPlaybackRequiresUserGesture = false
         }
         web.webViewClient = WebViewClient()
+        // WebChromeClient 가 없으면 WebView 는 JS 의 alert()/confirm() 을 '창 없이 false 반환'으로
+        // 처리한다 → 확인 절차를 붙인 버튼이 실기에서 먹통이 된다. 앱은 자체 확인창
+        // (js/ui.js)을 쓰지만, 혹시 남아 있는 기본 대화상자도 동작하도록 안전망으로 설정.
+        web.webChromeClient = WebChromeClient()
 
         // 오케스트라와 동일한 BLE(ISSC 투명 UART) — 페어링 없이 스캔→연결.
         ble = AltinoBle(
