@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 전체 화면(타이틀바 없음) — 웹 UI가 화면을 꽉 채우도록 -->
+    <!-- 전체 화면(타이틀바 없음) — 웹 UI가 화면을 꽉 채우도록.
+         windowFullscreen 은 쓰지 않는다: 이 플래그가 켜져 있으면 windowSoftInputMode=adjustResize
+         가 무시되어, 수학 문제 입력 시 소프트 키보드가 화면을 덮어버리고 정답 입력칸·버튼이
+         가려진다. 몰입 모드는 코드에서 인셋 컨트롤러로 처리한다. -->
     <style name="Theme.AltinoWebCtrl" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowFullscreen">true</item>
         <item name="android:statusBarColor">#0f1720</item>
     </style>
 </resources>

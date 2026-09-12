@@ -11,6 +11,10 @@ import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -38,7 +42,17 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled = true
             allowFileAccess = true
             mediaPlaybackRequiresUserGesture = false
+            // 이게 false(기본값)면 <meta viewport> 가 통째로 무시되어 화면 폭이 기기 dp 로 잡힌다.
+            // 그러면 1280x800 기준으로 짠 레이아웃이 태블릿마다 다른 폭이 되고,
+            // body{height:100vh;overflow:hidden} 때문에 넘친 부분(예: 심화 링크, 조향 패드)이
+            // 스크롤도 안 된 채 잘려 보인다.
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            // 시스템 '글꼴 크기'(접근성) 배율을 따라가면 글자만 커져 버튼이 화면 밖으로 밀린다.
+            textZoom = 100
         }
+        // 실기에서만 나는 문제를 노트북에서 chrome://inspect 로 들여다볼 수 있게.
+        try { WebView.setWebContentsDebuggingEnabled(true) } catch (e: Exception) {}
         web.webViewClient = WebViewClient()
         // WebChromeClient 가 없으면 WebView 는 JS 의 alert()/confirm() 을 '창 없이 false 반환'으로
         // 처리한다 → 확인 절차를 붙인 버튼이 실기에서 먹통이 된다. 앱은 자체 확인창
@@ -52,6 +66,22 @@ class MainActivity : AppCompatActivity() {
             { try { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) } catch (e: Exception) {} },
         )
         web.addJavascriptInterface(ble, "AltinoNative")
+
+        // 상태바만 숨겨 몰입감을 유지하되(키보드 동작을 막는 windowFullscreen 대신),
+        // 키보드가 뜨면 화면이 줄어들도록 한다.
+        try {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            WindowInsetsControllerCompat(window, web).let {
+                it.hide(WindowInsetsCompat.Type.statusBars())
+                it.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } catch (e: Exception) {}
+
+        // 뒤로가기: 앱을 종료하지 말고 웹 화면 뒤로. (학생이 무심코 눌러 앱이 꺼지고
+        // 자율배송 6단계 진행이 통째로 날아가던 문제)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() { if (web.canGoBack()) web.goBack() }
+        })
 
         requestBtPermsIfNeeded()
         web.loadUrl("file:///android_asset/webapp/home.html")
@@ -74,6 +104,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         try { ble.disconnect() } catch (_: Exception) {}
+        try { ble.release() } catch (_: Exception) {}   // 리시버 해제(누수·유령 복구 방지)
         web.destroy()
         super.onDestroy()
     }

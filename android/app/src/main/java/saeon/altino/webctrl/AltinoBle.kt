@@ -79,7 +79,7 @@ class AltinoBle(
         private const val SCAN_MIN_GAP = 6_000L  // startScan 최소 간격(30초/5회 스로틀 회피)
         private const val CLOSE_SETTLE_MS = 600L // close 후 재연결 최소 대기
         private const val OP_TIMEOUT_MS = 2_000L
-        @Volatile private var receiverRegistered = false   // 액티비티 재생성 시 중복 등록 방지
+        private const val CONNECT_DEADLINE_MS = 12_000L   // 연결 절차 전체 기한
     }
 
     private val adapter: BluetoothAdapter? = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -91,21 +91,31 @@ class AltinoBle(
     private var scanCb: ScanCallback? = null
     @Volatile private var scanning = false
     private var lastScanStart = 0L
-    private val seen = HashSet<String>()
+    // @JavascriptInterface 는 WebView의 JavaBridge 스레드에서, ScanCallback 은 메인 스레드에서
+    // 같은 집합을 만진다 → 동기화 필요(미동기화 시 기기 누락 또는 해시맵 경합).
+    private val seen = java.util.Collections.synchronizedSet(HashSet<String>())
     private val scanStopRunnable = Runnable { stopScan() }
 
     // ---- 연결/큐 ----
-    private var gatt: BluetoothGatt? = null
-    private var writeCh: BluetoothGattCharacteristic? = null
-    private var notifyCh: BluetoothGattCharacteristic? = null
+    // GATT 콜백은 바인더 스레드에서 온다 → 메인 스레드가 대입한 값이 보이도록 @Volatile 필수.
+    // (이게 없으면 연결됐는데도 gatt 가 null 로 보여 큐가 멈춘 채 '연결 중'에서 영영 안 넘어간다)
+    @Volatile private var gatt: BluetoothGatt? = null
+    @Volatile private var writeCh: BluetoothGattCharacteristic? = null
+    @Volatile private var notifyCh: BluetoothGattCharacteristic? = null
     @Volatile private var isConnected = false
-    private var negotiatedMtu = 23
+    // 연결 절차(연결→MTU→탐색→CCCD)가 진행 중. 이 구간에는 isConnected 가 아직 false 라서
+    // 재연결 타이머가 끼어들어 멀쩡한 핸드셰이크를 부수던 문제가 있었다.
+    @Volatile private var connecting = false
+    @Volatile private var negotiatedMtu = 23
     private var lastCloseAt = 0L
 
-    private var boundAddress: String? = prefs.getString(KEY_ADDR, null)
-    private var boundName: String? = prefs.getString(KEY_NAME, null)
+    @Volatile private var boundAddress: String? = prefs.getString(KEY_ADDR, null)
+    @Volatile private var boundName: String? = prefs.getString(KEY_NAME, null)
     @Volatile private var wantConnect = false     // 자동 재연결 희망 여부(수동 disconnect 시 false)
-    private var reconnectAttempts = 0
+    @Volatile private var reconnectAttempts = 0
+    // 재연결 예약은 반드시 이 하나만 사용한다(매번 새 람다를 postDelayed 하면 취소가 불가능해
+    // 여러 개가 쌓이고, 그중 하나가 성공 직전의 연결을 닫아버린다).
+    private var reconnectRunnable: Runnable? = null
 
     // GATT 직렬 큐
     private sealed class Op {
@@ -140,12 +150,16 @@ class AltinoBle(
         }
     }
 
+    // 어댑터 감시 리시버. 예전엔 static 플래그로 '한 번만 등록'했는데, 액티비티가 다시 만들어지면
+    // 새 인스턴스는 등록을 건너뛰고 죽은 인스턴스의 리시버만 남아 'BT 껐다 켜기' 복구가 조용히 멎었다
+    // (게다가 죽은 WebView 를 붙들고 있어 누수) → 인스턴스마다 등록하고 release() 로 해제한다.
+    private var btReceiver: BroadcastReceiver? = null
+
     init {
         // 블루투스 어댑터 꺼짐/켜짐 감시 — 현장에서 'BT 껐다 켜기' 응급조치를 해도 앱이 스스로 복구.
-        if (!receiverRegistered) {
-            receiverRegistered = true
+        run {
             try {
-                context.registerReceiver(object : BroadcastReceiver() {
+                val rx = object : BroadcastReceiver() {
                     override fun onReceive(c: Context?, i: Intent?) {
                         when (i?.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
                             BluetoothAdapter.STATE_OFF -> {
@@ -164,9 +178,18 @@ class AltinoBle(
                             }
                         }
                     }
-                }, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+                }
+                btReceiver = rx
+                context.registerReceiver(rx, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
             } catch (e: Exception) { Log.e(TAG, "bt receiver", e) }
         }
+    }
+
+    /** 액티비티 종료 시 호출 — 리시버 해제와 타이머 정리(누수·유령 복구 방지). */
+    fun release() {
+        try { btReceiver?.let { context.unregisterReceiver(it) } } catch (e: Exception) {}
+        btReceiver = null
+        main.removeCallbacksAndMessages(null)
     }
 
     // ======================= 스캔 =======================
@@ -274,18 +297,46 @@ class AltinoBle(
     @SuppressLint("MissingPermission")
     private fun openConnection(address: String, autoConnect: Boolean) {
         val a = adapter ?: return status("error:no-bluetooth")
+        if (!a.isEnabled) { status("error:bluetooth-off"); return }   // 꺼져 있으면 connectGatt 가 조용히 null 을 준다
         val dev: BluetoothDevice = try { a.getRemoteDevice(address) } catch (e: IllegalArgumentException) { return status("error:bad-address") }
         // 기존 gatt 정리 + close 후 최소 600ms 확보(133 방지)
         closeGatt()
+        connecting = true
         val since = SystemClock.elapsedRealtime() - lastCloseAt
         val wait = if (since >= CLOSE_SETTLE_MS) 0L else CLOSE_SETTLE_MS - since
         status("connecting")
         main.postDelayed({
+            // 대기하는 사이에 사용자가 해제/짝변경을 했을 수 있다. 확인하지 않으면
+            // 해제한 로봇에 계속 붙어 있어 다른 태블릿도 그 로봇을 못 쓴다.
+            if (!wantConnect || boundAddress != address) { connecting = false; return@postDelayed }
             synchronized(this) { ops.clear(); busy = false; pendingFrame = null; negotiatedMtu = 23 }
             try {
-                gatt = dev.connectGatt(context, autoConnect, gattCb, BluetoothDevice.TRANSPORT_LE)
-            } catch (e: Exception) { Log.e(TAG, "connectGatt", e); status("disconnected:connect-failed"); scheduleReconnect() }
+                val g = dev.connectGatt(context, autoConnect, gattCb, BluetoothDevice.TRANSPORT_LE)
+                if (g == null) { connecting = false; status("disconnected:connect-failed"); scheduleReconnect(); return@postDelayed }
+                gatt = g
+                pump()   // 대입 전에 도착한 콜백이 큐에 넣어 둔 작업을 여기서 흘려보낸다
+                armConnectDeadline()
+            } catch (e: Exception) {
+                Log.e(TAG, "connectGatt", e); connecting = false
+                status("disconnected:connect-failed"); scheduleReconnect()
+            }
         }, wait)
+    }
+
+    // 연결 절차가 중간에 멈추면(권한·스택 혼잡·특성 없음 등) 되살릴 방법이 없어
+    // '연결 중'에서 영영 머물렀다. 기한을 두고 실패로 처리해 재연결 경로로 보낸다.
+    private val connectDeadline = Runnable {
+        if (connecting && !isConnected) {
+            Log.w(TAG, "connect phase timeout → retry")
+            connecting = false
+            closeGatt()
+            status("disconnected:connect-timeout")
+            scheduleReconnect()
+        }
+    }
+    private fun armConnectDeadline() {
+        main.removeCallbacks(connectDeadline)
+        main.postDelayed(connectDeadline, CONNECT_DEADLINE_MS)
     }
 
     private val gattCb = object : BluetoothGattCallback() {
@@ -299,7 +350,8 @@ class AltinoBle(
                     0 -> "normal"; 8 -> "timeout"; 19 -> "remote"; 22 -> "local"; 133 -> "gatt-error"
                     else -> "code-$statusCode"
                 }
-                isConnected = false
+                isConnected = false; connecting = false
+                main.removeCallbacks(connectDeadline)
                 closeGatt()
                 status("disconnected:$reason")
                 scheduleReconnect()
@@ -307,7 +359,10 @@ class AltinoBle(
         }
         @SuppressLint("MissingPermission")
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, statusCode: Int) {
-            negotiatedMtu = mtu
+            // 실패하면 23으로 떨어지는데, 그러면 ATT 페이로드가 20바이트라 26바이트 프레임이
+            // 잘린다. '연결은 됐는데 차가 말을 안 듣는' 증상이 되므로 로그로 드러낸다.
+            negotiatedMtu = if (statusCode == BluetoothGatt.GATT_SUCCESS) mtu else 23
+            if (negotiatedMtu < 29) Log.w(TAG, "MTU $negotiatedMtu — 26바이트 프레임이 잘릴 수 있음")
             opDone()
             enqueue(Op.Discover)
         }
@@ -316,7 +371,10 @@ class AltinoBle(
             if (statusCode != BluetoothGatt.GATT_SUCCESS) { opDone(); status("disconnected:no-services"); closeGatt(); scheduleReconnect(); return }
             pickCharacteristics(g)
             val n = notifyCh
-            if (writeCh == null || n == null) { opDone(); status("error:no-uart-char"); return }
+            if (writeCh == null || n == null) {
+                // UART 특성을 못 찾으면 그대로 멈춰 있었다 → 끊고 다시 시도
+                opDone(); status("error:no-uart-char"); connecting = false; closeGatt(); scheduleReconnect(); return
+            }
             try {
                 g.setCharacteristicNotification(n, true)
                 val d = n.getDescriptor(CCCD)
@@ -324,15 +382,23 @@ class AltinoBle(
                     enqueue(Op.Descriptor(d, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE))
                 } else {
                     // CCCD 없으면 알림만 켜고 바로 연결 확정
-                    reconnectAttempts = 0; isConnected = true; onLinkUp(); status("connected")
+                    reconnectAttempts = 0; isConnected = true; connecting = false
+                    main.removeCallbacks(connectDeadline); onLinkUp(); status("connected")
                 }
-            } catch (e: Exception) { Log.e(TAG, "enable notify", e); status("error:notify-failed") }
+            } catch (e: Exception) {
+                // 여기서 멈추면 되살릴 길이 없었다 → 실패로 보고 재연결로 보낸다
+                Log.e(TAG, "enable notify", e); status("error:notify-failed")
+                connecting = false; closeGatt(); scheduleReconnect()
+            }
             opDone()
         }
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, statusCode: Int) {
             if (statusCode == BluetoothGatt.GATT_SUCCESS) {
-                reconnectAttempts = 0; isConnected = true; onLinkUp(); status("connected")   // ★ 여기서 connected
-            } else status("error:notify-failed")
+                reconnectAttempts = 0; isConnected = true; connecting = false
+                main.removeCallbacks(connectDeadline); onLinkUp(); status("connected")   // ★ 여기서 connected
+            } else {
+                status("error:notify-failed"); connecting = false; closeGatt(); scheduleReconnect()
+            }
             opDone()
         }
         override fun onCharacteristicWrite(g: BluetoothGatt, ch: BluetoothGattCharacteristic, statusCode: Int) { opDone() }
@@ -462,6 +528,7 @@ class AltinoBle(
     private fun scheduleReconnect() {
         if (!wantConnect) return
         val addr = boundAddress ?: return
+        if (isConnected || connecting) return   // 이미 붙었거나 붙는 중이면 건드리지 않는다
         reconnectAttempts++
         // 핵심: 포기(give-up) 없음. 로봇이 꺼졌다/멀어졌다 다시 나타나면 스스로 재연결.
         //  - 1회는 direct(빠른 복구), 2회부터는 autoConnect=true → OS가 배경에서 링크요청을
@@ -472,8 +539,11 @@ class AltinoBle(
         val base = minOf(800L * (1L shl (idx - 1)), 10_000L)
         val delay = base + Random.nextLong(0, 1200)
         status("reconnecting:$reconnectAttempts")
-        // 타이머가 뜨는 사이 이미 붙었으면(!isConnected 가드) 좋은 연결을 끊지 않는다.
-        main.postDelayed({ if (wantConnect && !isConnected) openConnection(addr, auto) }, delay)
+        // 예약은 항상 하나만 살아 있게 한다(쌓인 타이머가 성공 직전 연결을 닫던 문제).
+        reconnectRunnable?.let { main.removeCallbacks(it) }
+        val r = Runnable { if (wantConnect && !isConnected && !connecting) openConnection(addr, auto) }
+        reconnectRunnable = r
+        main.postDelayed(r, delay)
     }
 
     // ======================= JS 조회/제어 =======================
