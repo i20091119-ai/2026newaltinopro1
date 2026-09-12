@@ -281,6 +281,19 @@
 
   // ---- 연결 ----
   // 상단에 현재 짝 로봇의 블루투스 번호(스티커 번호)를 크게 표시
+  // 스티커 번호가 BF12·BF14 처럼 숫자로 끝나므로 '과/와'가 번갈아 맞다.
+  // 마지막 글자가 영문·숫자여도 한국어 읽기의 받침으로 판단한다.
+  function josaWa(word) {
+    const ch = String(word || '').trim().slice(-1);
+    const DIGIT = { '0': true, '1': true, '2': false, '3': true, '4': false,
+                    '5': false, '6': true, '7': true, '8': true, '9': false };
+    if (ch in DIGIT) return DIGIT[ch] ? '과' : '와';
+    const code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) return ((code - 0xAC00) % 28) ? '과' : '와';
+    // 영문 알파벳: 읽는 소리 기준(L·M·N·R 등은 받침 있음)
+    return 'lmnr'.includes(ch.toLowerCase()) ? '과' : '와';
+  }
+
   function updateRobotChip() {
     const el = $('robotNo'); if (!el) return;
     if (!T.AndroidBridgeTransport.supported) { el.textContent = '데모'; return; }
@@ -360,7 +373,7 @@
       b.innerHTML = `🚗 <b style="font-size:1.5rem;color:#5ea0ff">⟨${stickerCode(d.name, d.address)}⟩</b> ${bars}${near}${isBound}<br><span style="font-size:.75rem;color:#9b8f86">${d.name || ''} · ${d.address}</span>`;
       if (locked) b.style.opacity = '.5';
       b.onclick = () => {
-        if (bound && d.address !== bound) { toast('⟨' + stickerCode(boundSt.name, bound) + '⟩과 짝이에요 · [🔓 짝 해제] 먼저'); return; }
+        if (bound && d.address !== bound) { const c = stickerCode(boundSt.name, bound); toast('⟨' + c + '⟩' + josaWa(c) + ' 짝이에요 · [🔓 짝 해제] 먼저'); return; }
         stopScanning(); connect('native', d.address); closeConn();
       };
       list.appendChild(b);

@@ -12,6 +12,14 @@
   const state = new P.AltinoState();
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null, running = false;
+  // ⚠ 주행 '세대' 번호. 정지를 눌러도 이전 루프는 await sleep() 안에 들어가 있어
+  //   곧 깨어난다. 그때 이미 새 주행이 시작돼 있으면 두 루프가 동시에 모터를
+  //   지시해 차가 제멋대로 움직인다(정지 직후 다시 출발할 때). 세대가 바뀌면
+  //   옛 루프는 스스로 물러난다.
+  let runGen = 0;
+  // 센서 프레임이 마지막으로 들어온 시각. 이게 멎으면 sensor 는 옛값 그대로라
+  // 벽이 앞에 있어도 '뚫려 있다'고 믿고 25초를 직진한다.
+  let lastRxAt = 0;
   const STREAM_MS = 100;   // 20Hz→10Hz: 12대 동시운영 시 BT 트래픽 절반(안정성↑)
   const sensor = { ir1: 999, ir2: 999, ir3: 999, ir4: 999, ir5: 999, ir6: 999, cds: 999, battery: 0 };
 
@@ -41,9 +49,34 @@
   let SIDE_ON = true, SIDE_KP = 0.12, SIDE_TARGET = 100;
   const SIDE_SMAX = 50, SIDE_VALID = 900;   // 조향 상한↑(더 세게 보정)·측면 벽 더 일찍 감지
 
-  // ② 복구코드 문제 — 초4·초5·초6·중1·중2·중3·고1 각 20문항(정수 정답).
+  // ② 복구코드 문제 — 초1~고1 각 20문항(정수 정답).
   // 각 학년 1학기 교육과정 범위, 난이도는 가장 쉬운 수준으로만. (독립 검산기 0오류 통과)
   const PROBLEMS = {
+    // 초1·초2는 예전엔 없어서 1·2학년 학생이 초3(곱셈·나눗셈)을 골라야 했다.
+    e1: { label: '초1 · 덧셈·뺄셈', list: [
+      // 1학년 1학기: 9까지의 수 · 덧셈과 뺄셈(합 9 이하)
+      { q: '3 + 4 = ?', a: 7 }, { q: '2 + 5 = ?', a: 7 },
+      { q: '1 + 6 = ?', a: 7 }, { q: '4 + 4 = ?', a: 8 },
+      { q: '5 + 3 = ?', a: 8 }, { q: '2 + 7 = ?', a: 9 },
+      { q: '6 + 3 = ?', a: 9 }, { q: '1 + 8 = ?', a: 9 },
+      { q: '9 − 4 = ?', a: 5 }, { q: '8 − 3 = ?', a: 5 },
+      { q: '7 − 2 = ?', a: 5 }, { q: '9 − 3 = ?', a: 6 },
+      { q: '8 − 2 = ?', a: 6 }, { q: '6 − 2 = ?', a: 4 },
+      { q: '5 − 1 = ?', a: 4 }, { q: '7 − 4 = ?', a: 3 },
+      { q: '4 + 3 = ?', a: 7 }, { q: '3 + 3 = ?', a: 6 },
+      { q: '9 − 6 = ?', a: 3 }, { q: '8 − 6 = ?', a: 2 } ] },
+    e2: { label: '초2 · 두 자리 계산', list: [
+      // 2학년 1학기: 세 자리 수 · 받아올림/내림이 있는 두 자리 덧뺄 · 곱셈의 뜻
+      { q: '24 + 13 = ?', a: 37 }, { q: '35 + 22 = ?', a: 57 },
+      { q: '46 + 31 = ?', a: 77 }, { q: '28 + 15 = ?', a: 43 },
+      { q: '37 + 26 = ?', a: 63 }, { q: '49 + 18 = ?', a: 67 },
+      { q: '58 − 23 = ?', a: 35 }, { q: '76 − 41 = ?', a: 35 },
+      { q: '64 − 32 = ?', a: 32 }, { q: '52 − 17 = ?', a: 35 },
+      { q: '81 − 26 = ?', a: 55 }, { q: '70 − 45 = ?', a: 25 },
+      { q: '2씩 4묶음은 모두 몇 개?', a: 8 }, { q: '5씩 3묶음은 모두 몇 개?', a: 15 },
+      { q: '3씩 5묶음은 모두 몇 개?', a: 15 }, { q: '4씩 4묶음은 모두 몇 개?', a: 16 },
+      { q: '10이 6개인 수는?', a: 60 }, { q: '100이 3개인 수는?', a: 300 },
+      { q: '99보다 1 큰 수는?', a: 100 }, { q: '40 + 30 = ?', a: 70 } ] },
     e3: { label: '초3 · 곱셈·나눗셈', list: [
       // 3학년 1학기: 세 자리 덧뺄·나눗셈·곱셈(두자리×한자리)·길이와 시간·평면도형
       { q: '245 + 132 = ?', a: 377 }, { q: '361 + 118 = ?', a: 479 },
@@ -164,10 +197,10 @@
       { q: '🚚 한 줄에 6개씩 3줄로 쌓은 배송 상자는 모두 몇 개?', a: 18 },
       { q: '🚚 상자 20개 중 2개를 내렸어요. 남은 상자는 몇 개?', a: 18 } ] },
     { name: '남부 보관소', code: 'S', box: 20, probs: [
-      { q: '🚚 한 상자에 물건 5개씩, 4상자예요. 물건은 모두 몇 개?', a: 20 },
+      { q: '🚚 한 줄에 5개씩 4줄로 쌓은 배송 상자는 모두 몇 개?', a: 20 },
       { q: '🚚 배송차 2대에 상자를 10개씩 실었어요. 상자는 모두 몇 개?', a: 20 } ] },
     { name: '중앙 배송센터', code: 'D', box: 24, probs: [
-      { q: '🚚 한 상자에 물건 8개씩, 3상자예요. 물건은 모두 몇 개?', a: 24 },
+      { q: '🚚 배송차 3대에 상자를 8개씩 실었어요. 상자는 모두 몇 개?', a: 24 },
       { q: '🚚 배송차 4대에 상자를 6개씩 실었어요. 상자는 모두 몇 개?', a: 24 } ] },
   ];
   const NOTE_NAME = { 37: '도', 39: '레', 41: '미', 42: '파', 44: '솔', 46: '라', 48: '시', 49: '높은도' };
@@ -216,6 +249,7 @@
   function onSensor(s) {
     if (typeof s.cds === 'number') s.cds = Math.max(30, s.cds); // 조도 최소 30 보장(0 표시로 인한 혼란 방지)
     Object.assign(sensor, s);  // 센서 자체는 매 프레임 갱신(주행 판단용)
+    lastRxAt = Date.now();     // 수신이 살아 있음을 표시(멎으면 주행을 세운다)
     // 화면 숫자는 250ms마다만 갱신(초당 4회) — 덜덜 떨림 방지. 폭은 CSS 고정 박스로.
     const now = Date.now(); if (now - lastUi < 250) return; lastUi = now;
     const tof = `${s.ir1}/${s.ir2}/${s.ir3}`;
@@ -240,12 +274,26 @@
   }
 
   // ① 센서 숫자로 수학 — 사이값(평균) 계산
+  // 조도값이 30 밑으로는 안 내려가게 보정되므로(onSensor), 기준이 40 밑이면 영영 안 걸린다.
+  const LIGHT_MIN_USABLE = 40;
+  function expectedLight() { return Math.round((brightVal + darkVal) / lightDiv); }
   function updateCalc() {
     // 나누는 수의 배수로 맞춰 둔다 → 두 값의 합이 항상 딱 떨어져 소수점이 안 생김(초등 배려)
     brightVal = snapDiv(rawBright); darkVal = snapDiv(rawDark);
     $('brightVal').textContent = brightVal; $('darkVal').textContent = darkVal;
     $('calcA').textContent = brightVal; $('calcB').textContent = darkVal;
     if ($('calcD')) $('calcD').textContent = lightDiv;
+    // ⚠ ÷4 는 '평균'이 아니다. (620+88)÷4 = 177 은 두 값의 평균(354)이 아니라
+    //   '평균보다 더 어둡게 잡은 기준'이다. 학생이 평균을 잘못 배우지 않도록 이름을 바꾼다.
+    if ($('calcName')) $('calcName').textContent = (lightDiv === 2) ? '사이값(평균)' : '터널 기준';
+    const w = $('divWarn');
+    if (w) {
+      const exp = expectedLight();
+      // 기준이 '터널 안에서 잰 값'보다도 낮으면 터널을 영영 못 찾는다.
+      const bad = (exp <= darkVal + 10) || (exp < LIGHT_MIN_USABLE);
+      w.classList.toggle('hidden', !bad);
+      if (bad) w.textContent = `⚠ 이 설정(÷${lightDiv})이면 기준 ${exp} 이 터널 안 조도 ${darkVal} 보다 낮거나 비슷해요 — 터널을 못 찾습니다. ÷2 로 바꾸거나 조도를 다시 재세요.`;
+    }
   }
   const snapDiv = (v) => Math.round(v / lightDiv) * lightDiv;
   function setLightDiv(d) {          // 2 ↔ 4 전환: 표시값·정답·입력칸을 함께 초기화
@@ -260,13 +308,13 @@
   function capDark() { if (sensor.cds < 999) { rawDark = sensor.cds; updateCalc(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
   function checkLight() {
     const v = parseInt($('lightInput').value, 10);
-    const exp = Math.round((brightVal + darkVal) / lightDiv);
+    const exp = expectedLight();
     const fb = $('lightFb');
     if (isNaN(v)) { fb.textContent = '숫자를 넣어요.'; fb.style.color = 'var(--coral)'; return; }
-    if (Math.abs(v - exp) <= 1) { // 두 값의 평균(±1 허용) — 좌절 방지
+    if (Math.abs(v - exp) <= 1) { // 계산값 ±1 허용 — 좌절 방지
       lightThresh = v; fb.textContent = `정답! 터널 기준 = ${v} 🔆 — ✏️ 활동지에 쓰세요`; fb.style.color = 'var(--mint)';
       $('toStep2').classList.remove('hidden'); toast('🔆 터널 기준 완성!');
-    } else { fb.textContent = `다시 계산해 봐요. (두 값을 더해 ${lightDiv}로 나누기)`; fb.style.color = 'var(--coral)'; $('toStep2').classList.add('hidden'); }
+    } else { fb.textContent = `다시 계산해 봐요. (두 값을 더해 ${lightDiv}(으)로 나누기)`; fb.style.color = 'var(--coral)'; $('toStep2').classList.add('hidden'); }
   }
 
   // ② 암호
@@ -408,13 +456,37 @@
   function hudAct(t) { const e = $('hudAct'); if (e) e.textContent = t; }
   // 정면 회피 방향 래치(+1=우 / -1=좌). 한 번 정하면 정면이 뚫릴 때까지 유지 → 좌우 뒤집힘(와리가리) 방지.
   let escaping = false, escDir = 1, escStartAt = 0, escBestFront = 0;
+  const DIAG_DIFF = 25;   // 앞 대각 좌우 차이가 이만큼이면 '어느 쪽이 열렸는지' 확실하다고 본다
   function pickEscapeDir(ir1, ir3, ir4, ir5) {
-    // 더 열린 쪽 선택. 측면값은 유효(<SIDE_VALID)할 때만 참고, 아니면 전면 대각(ir1/ir3)만으로 결정.
-    const rM = Math.min(ir3, ir4 < SIDE_VALID ? ir4 : 99999);
-    const lM = Math.min(ir1, ir5 < SIDE_VALID ? ir5 : 99999);
-    return rM >= lM ? 1 : -1;
+    // ⚠ 예전엔 앞 대각과 측면을 min() 으로 섞었다. 그런데 벽을 따라 달리는 중에는
+    //   그쪽 측면값이 원래 작다(벽이 옆에 있으니). 그래서 오른쪽 벽을 따라가다
+    //   코너에 닿으면 '오른쪽이 막혔다'고 잘못 읽고 왼쪽(=막힌 쪽)으로 틀었다.
+    //   해설사들이 보내 준 실제 끼임 값(앞 94/102/157, 옆 89·455)이 정확히 이 경우로,
+    //   앞은 오른쪽(157)이 확실히 열려 있는데 옆값 89 때문에 왼쪽을 골랐다.
+    // → 1순위는 '앞이 어디로 열려 있나'(ir1 좌 / ir3 우). 측면은 앞이 비슷할 때만.
+    if (Math.abs(ir3 - ir1) >= DIAG_DIFF) return ir3 > ir1 ? 1 : -1;
+    const r = ir4 < SIDE_VALID ? ir4 : 99999;
+    const l = ir5 < SIDE_VALID ? ir5 : 99999;
+    if (r !== l) return r > l ? 1 : -1;
+    return 1;
   }
-  async function wallFollowStep() {
+  // 이 주행이 아직 유효한가(정지를 눌렀거나 새 주행이 시작되지 않았는가)
+  function alive(gen) { return running && gen === runGen; }
+  // 대기 중에 정지가 눌리면 그 자리에서 모터를 끈다 — await 뒤에 이어지는
+  // setDrive 가 '이미 멈춘 차'에 다시 전진을 지시하던 문제를 막는다.
+  async function hold(ms, gen) {
+    await sleep(ms);
+    if (!alive(gen)) { setDrive(0, 0); return false; }
+    return true;
+  }
+
+  async function wallFollowStep(gen) {
+    if (!alive(gen)) { setDrive(0, 0); return; }
+    // 센서가 멎었는데 계속 달리면, 앞의 벽을 못 보고 마지막 값만 믿고 돌진한다.
+    if (lastRxAt && Date.now() - lastRxAt > 1200) {
+      setDrive(0, 0); hudAct('⚠ 센서 신호 끊김 — 정지');
+      return;
+    }
     const { ir1, ir2, ir3, ir4, ir5 } = sensor;
     const FULL = 127;
     // 전면 3개(좌·중·우) 중 '가장 가까운' 것으로 판단 → 코너에서 앞 대각만 껴도 회피·후진(끼임 방지)
@@ -430,19 +502,22 @@
       // 옆벽에 붙어 비스듬히 낀 경우 앞거리가 더 안 줄어 후진 조건에 안 걸린다 → 시간으로 판정
       const stalled = Date.now() - escStartAt > ESC_STALL_MS;
       if (frontMin < near || stalled) {   // 코앞/코너에 낌 → K턴: 열린쪽 '반대로' 후진 → 열린쪽으로 전진
-        setDrive(WF_BACK, -escDir * FULL); hudAct(stalled ? '⤿ 끼임! 후진 탈출' : (escDir > 0 ? '⤿ 후진(오른쪽 탈출)' : '⤾ 후진(왼쪽 탈출)')); await sleep(HOLD_MS);
-        setDrive(DRIVE,     escDir * FULL); hudAct(escDir > 0 ? '↱ 전진(오른쪽)'   : '↰ 전진(왼쪽)');       await sleep(HOLD_MS);
+        setDrive(WF_BACK, -escDir * FULL); hudAct(stalled ? '⤿ 끼임! 후진 탈출' : (escDir > 0 ? '⤿ 후진(오른쪽 탈출)' : '⤾ 후진(왼쪽 탈출)'));
+        if (!await hold(HOLD_MS, gen)) return;
+        setDrive(DRIVE,     escDir * FULL); hudAct(escDir > 0 ? '↱ 전진(오른쪽)'   : '↰ 전진(왼쪽)');
+        if (!await hold(HOLD_MS, gen)) return;
         escStartAt = Date.now(); escBestFront = frontMin;   // 탈출 시도했으니 다시 관찰
       } else {                            // 접근 중 → 열린쪽으로 강하게 틀며 전진(후진 없이)
-        setDrive(Math.round(DRIVE * 0.7), escDir * TURN); hudAct(escDir > 0 ? '↱ 정면벽 우회피' : '↰ 정면벽 좌회피'); await sleep(HOLD_MS);
+        setDrive(Math.round(DRIVE * 0.7), escDir * TURN); hudAct(escDir > 0 ? '↱ 정면벽 우회피' : '↰ 정면벽 좌회피');
+        if (!await hold(HOLD_MS, gen)) return;
       }
       return;
     }
     escaping = false;                     // 정면 뚫림 → 회피 종료
     // ② 안티-스크레이프: 한쪽 벽에 '바짝'(초근접) → 벽 긁기 직전이므로 반대로 강하게(센서 정상 전제)
     const HARD = 75, HARDST = 90;
-    if (ir4 < HARD && ir4 <= ir5) { setDrive(DRIVE, -HARDST); hudAct('◀ 우벽 바짝! 좌로'); await sleep(HOLD_MS); return; }
-    if (ir5 < HARD && ir5 <  ir4) { setDrive(DRIVE,  HARDST); hudAct('▶ 좌벽 바짝! 우로'); await sleep(HOLD_MS); return; }
+    if (ir4 < HARD && ir4 <= ir5) { setDrive(DRIVE, -HARDST); hudAct('◀ 우벽 바짝! 좌로'); await hold(HOLD_MS, gen); return; }
+    if (ir5 < HARD && ir5 <  ir4) { setDrive(DRIVE,  HARDST); hudAct('▶ 좌벽 바짝! 우로'); await hold(HOLD_MS, gen); return; }
     // ③ 복도 가운데 유지 — 측면(ir4우/ir5좌) 정밀. 한쪽만 보이면 목표거리 유지, 둘 다 안 보이면 전면 대각.
     let st = 0, why = '⬆ 직진';
     const Rok = ir4 < SIDE_VALID, Lok = ir5 < SIDE_VALID;
@@ -460,59 +535,101 @@
       st = Math.max(-STEER, Math.min(STEER, st));
       why = st > 0 ? '↳ 좌벽→우로' : st < 0 ? '↲ 우벽→좌로' : '⬆ 직진';
     }
-    setDrive(DRIVE, st); hudAct(why); await sleep(st === 0 ? STREAM_MS : HOLD_MS);
+    setDrive(DRIVE, st); hudAct(why); await hold(st === 0 ? STREAM_MS : HOLD_MS, gen);
   }
-  // 반환값: true=조건 달성, false=시간초과(코스를 못 찾음). 조용히 서면 고장으로 오해해서 알려준다.
-  async function driveUntil(cond) {
+  // 반환값: true=조건 달성. false=중단(정지 누름)이거나 시간초과.
+  // ⚠ 예전엔 `!running || cond()` 라 '정지를 눌러 중단된 것'을 성공으로 보고했다.
+  //   그러면 정지를 눌렀는데도 다음 단계가 이어져 backBump() 가 −350으로 후진했다.
+  //   (정지 직후 차가 뒤로 한 번 튀던 증상) 호출자는 running 을 따로 확인한다.
+  async function driveUntil(cond, gen) {
     const t0 = Date.now();
-    while (running && !cond() && Date.now() - t0 < PHASE_TIMEOUT) { await wallFollowStep(); }
+    while (alive(gen) && !cond() && Date.now() - t0 < PHASE_TIMEOUT) { await wallFollowStep(gen); }
     setDrive(0, 0);
-    return !running || cond();
+    return alive(gen) && cond();
   }
-  async function backBump() { setDrive(BUMP_SPEED, 0); await sleep(BUMP_MS); setDrive(0, 0); state.steer(0); await sleep(200); }
+  async function backBump(gen) {
+    if (!alive(gen)) return;
+    setDrive(BUMP_SPEED, 0);
+    if (!await hold(BUMP_MS, gen)) return;
+    setDrive(0, 0); state.steer(0);
+    await hold(200, gen);
+  }
   // 배송 문자 표시 — 방향 보정(js/dotmatrix.js)을 거쳐 찍는다.
   // FONT는 '바이트=행(위→아래), 비트7=맨왼쪽열'로 설계돼 있어 drawBytes가 그대로 해석한다.
   function showLetter(code) { window.AltinoDot.drawBytes(state, FONT[code] || FONT.D); }
-  async function soundMission() {  // 차량 부저: 계이름1·계이름2 × 반복N, 0.5초 간격
-    for (let i = 0; i < repeatN && running; i++) { state.soundSet(note1); await sleep(500); state.soundSet(note2); await sleep(500); }
-    state.soundSet(0);
+  async function soundMission(gen) {  // 차량 부저: 계이름1·계이름2 × 반복N, 0.5초 간격
+    // finally 로 반드시 꺼 준다 — 중간에 정지하거나 예외가 나면 부저가 계속 울었다.
+    try {
+      for (let i = 0; i < repeatN && alive(gen); i++) {
+        state.soundSet(note1); await sleep(500);
+        if (!alive(gen)) return;
+        state.soundSet(note2); await sleep(500);
+      }
+    } finally { state.soundSet(0); }
   }
 
   async function runDelivery() {   // 원본 '실행1' 시퀀스 재현
-    if (running) return; running = true; escaping = false; setRunUI(true); state.dotClear();
-    // 원본 도입부: 정지 1초 → GO 표시 1초 → 출발
-    setDrive(0, 0); await sleep(1000);
-    const goEl = $('goFlash'); if (goEl) { goEl.classList.remove('hidden'); await sleep(1000); goEl.classList.add('hidden'); }
-    if (!running) return; toast('배송 시작! 🚚');
-    // 터널1까지 벽추종 → 미션1(소리)
-    if (!await driveUntil(() => sensor.cds < lightThresh)) {
-      toast('⏱ 터널을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
-      setDrive(0, 0); state.dotClear(); running = false; setRunUI(false); return;
+    if (running) return;
+    running = true; escaping = false; setRunUI(true); state.dotClear();
+    const gen = ++runGen;
+    // ⚠ 어떤 경로로 끝나도(정지·시간초과·예외) 모터와 부저는 반드시 끈다.
+    try {
+      // 원본 도입부: 정지 1초 → GO 표시 1초 → 출발
+      setDrive(0, 0); await sleep(1000);
+      if (!alive(gen)) return;
+      const goEl = $('goFlash');
+      if (goEl) { goEl.classList.remove('hidden'); await sleep(1000); goEl.classList.add('hidden'); }
+      if (!alive(gen)) return;
+      toast('배송 시작! 🚚');
+
+      // 터널1까지 벽추종 → 미션1(소리)
+      if (!await driveUntil(() => sensor.cds < lightThresh, gen)) {
+        if (alive(gen)) toast('⏱ 터널을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
+        return;
+      }
+      await backBump(gen);
+      if (!alive(gen)) return;
+      toast('🕳️ 터널! 소리 미션 🎵');
+      await soundMission(gen);
+      if (!alive(gen)) return;
+
+      // 터널2까지(조도<조도값 & 2초 경과) 벽추종 → 미션2(문자)
+      const t0 = Date.now();
+      if (!await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000, gen)) {
+        if (alive(gen)) toast('⏱ 도착 지점을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
+        return;
+      }
+      await backBump(gen);
+      if (alive(gen) && zone) {
+        showLetter(zone.code);
+        $('arriveLetter').textContent = zone.code; $('arriveName').textContent = zone.name;
+        $('arrive').classList.remove('hidden');
+        toast(`📦 배송 완료! [${zone.code}]`);
+        await sleep(3000);
+        $('arrive').classList.add('hidden');
+      }
+    } finally {
+      // 내가 아직 현재 주행일 때만 정리한다(정지 후 새 주행이 시작됐다면 건드리지 않음)
+      if (gen === runGen) {
+        setDrive(0, 0); state.dotClear(); state.soundSet(0);
+        running = false; setRunUI(false);
+      }
     }
-    await backBump();
-    if (running) { toast('🕳️ 터널! 소리 미션 🎵'); await soundMission(); }
-    // 터널2까지(조도<조도값 & 2초 경과) 벽추종 → 미션2(문자)
-    const t0 = Date.now();
-    if (!await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000)) {
-      toast('⏱ 도착 지점을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
-      setDrive(0, 0); state.dotClear(); running = false; setRunUI(false); return;
-    }
-    await backBump();
-    if (running && zone) {
-      showLetter(zone.code);
-      $('arriveLetter').textContent = zone.code; $('arriveName').textContent = zone.name; $('arrive').classList.remove('hidden');
-      toast(`📦 배송 완료! [${zone.code}]`); await sleep(3000); $('arrive').classList.add('hidden');
-    }
-    setDrive(0, 0); state.dotClear(); running = false; setRunUI(false);
   }
   // 계속 주행(튜닝/시연): 미션·정지 없이 벽만 따라 무한 주행 → 정지 누를 때까지
   async function runLoop() {
-    if (running) return; running = true; escaping = false; setRunUI(true); toast('🔁 계속 주행 — 코스를 계속 돌아요 (정지로 멈춤)');
-    setDrive(0, 0); await sleep(400);
-    while (running) { await wallFollowStep(); }
-    setDrive(0, 0);
+    if (running) return;
+    running = true; escaping = false; setRunUI(true);
+    const gen = ++runGen;
+    toast('🔁 계속 주행 — 코스를 계속 돌아요 (정지로 멈춤)');
+    try {
+      setDrive(0, 0); await sleep(400);
+      while (alive(gen)) { await wallFollowStep(gen); }
+    } finally {
+      if (gen === runGen) { setDrive(0, 0); state.soundSet(0); running = false; setRunUI(false); }
+    }
   }
-  function stopRun() { running = false; setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); const g = $('goFlash'); if (g) g.classList.add('hidden'); setRunUI(false); }
+  function stopRun() { running = false; runGen++; setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); const g = $('goFlash'); if (g) g.classList.add('hidden'); setRunUI(false); }
   function setRunUI(on) { $('goRun').classList.toggle('hidden', on); const l = $('loopRun'); if (l) l.classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
 
   // ---- 연결 ----

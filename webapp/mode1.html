@@ -113,19 +113,22 @@
       <h1>스스로 달리는 배송차 ☀️🚚</h1>
       <div class="alert">GPS·통신이 교란됐어요. 이 차는 <b>라이다로 벽을, 빛(조도)으로 터널을</b> 보고 스스로 달려요. 센서 숫자로 <b>주행 코드</b>를 복구하면 임무 완수!</div>
       <h2>① 조도값 — 센서 숫자로 '터널 기준' 계산</h2>
-      <p class="lead">밝은 곳과 터널 안에서 <b>🔆조도</b>를 측정하고, 두 값의 <b>사이값(평균)</b>을 구해요. 이 값보다 어두우면 차가 “터널!”로 판단해요.</p>
+      <p class="lead">밝은 곳과 터널 안에서 <b>🔆조도</b>를 측정하고, 두 값으로 <b>터널 기준</b>을 계산해요(<b>÷2 = 두 값의 평균</b>). 이 값보다 어두우면 차가 “터널!”로 판단해요.</p>
       <div class="measure">
         <div class="mcell"><div class="mlabel">밝은 곳 조도</div><div class="mval" id="brightVal">620</div><button class="btn ghost sm" id="capBright">📷 측정</button></div>
         <div class="mplus">＋</div>
         <div class="mcell"><div class="mlabel">터널 안 조도</div><div class="mval" id="darkVal">90</div><button class="btn ghost sm" id="capDark">📷 측정</button></div>
       </div>
-      <div class="calcrow">사이값 = ( <b id="calcA">620</b> ＋ <b id="calcB">90</b> ) ÷ <b id="calcD">2</b> = ?</div>
+      <div class="calcrow"><b id="calcName">사이값(평균)</b> = ( <b id="calcA">620</b> ＋ <b id="calcB">90</b> ) ÷ <b id="calcD">2</b> = ?</div>
       <!-- 조도 센서가 예민해 터널이 아닌데도 걸릴 때는 ÷4로 낮춰 기준을 더 어둡게 잡는다(강사 설정) -->
       <div class="divpick">나누는 수
         <button class="divbtn on" data-div="2">÷ 2</button>
         <button class="divbtn" data-div="4">÷ 4</button>
         <span class="divhint">터널이 아닌데 자꾸 “터널!”이면 <b>÷4</b></span>
       </div>
+      <!-- ÷4 로 기준이 너무 낮아지면(측정한 터널보다 어둡게 잡히면) 터널을 영영 못 찾는다.
+           그 상태를 눈에 보이게 알려 준다. -->
+      <div id="divWarn" class="divpick hidden" style="color:#c0392b"></div>
       <div class="row" style="justify-content:center"><input id="lightInput" type="number" placeholder="?"><button id="lightOk" class="btn">확인</button></div>
       <div class="fb" id="lightFb" style="text-align:center"></div>
       <div class="foot"><span></span><button id="toStep2" class="btn hidden">다음 →</button></div>
@@ -136,6 +139,8 @@
       <div class="eyebrow">② 암호 — 주행 코드 복구</div>
       <h1>계산으로 복구 코드를 구하자 🔑</h1>
       <div class="grades">
+        <button class="gradebtn" data-g="e1">초1<br><span class="lead" style="margin:0">덧셈·뺄셈</span></button>
+        <button class="gradebtn" data-g="e2">초2<br><span class="lead" style="margin:0">두 자리 계산</span></button>
         <button class="gradebtn" data-g="e3">초3<br><span class="lead" style="margin:0">곱셈·나눗셈</span></button>
         <button class="gradebtn" data-g="e4">초4<br><span class="lead" style="margin:0">각도</span></button>
         <button class="gradebtn" data-g="e5">초5<br><span class="lead" style="margin:0">혼합계산</span></button>

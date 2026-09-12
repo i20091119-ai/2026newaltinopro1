@@ -60,10 +60,12 @@
         <button class="btn led" data-led="15">전체</button>
       </div>
       <div class="btngrid">
-        <button class="btn snd" data-sound="49">삐-</button>
-        <button class="btn snd" data-sound="41">도</button>
+        <!-- 코드 ↔ 계이름은 js/code.js 의 NOTE_NAME 이 기준(37=도 … 49=높은도).
+             예전엔 이 패널만 37을 '미', 41을 '도'로 적어 두 곳이 서로 달랐다. -->
+        <button class="btn snd" data-sound="37">도</button>
         <button class="btn snd" data-sound="39">레</button>
-        <button class="btn snd" data-sound="37">미</button>
+        <button class="btn snd" data-sound="41">미</button>
+        <button class="btn snd" data-sound="49">높은도</button>
       </div>
     </div>
 
@@ -88,7 +90,7 @@
     </div>
   </main>
 
-  <footer>Bluetooth Classic SPP · 50ms 스트리밍 · <a href="../docs/PROTOCOL.md">프로토콜 명세</a> · <a href="protocol.test.html">셀프테스트</a></footer>
+  <footer>Bluetooth Classic SPP · 50ms 스트리밍 · <a href="protocol.test.html">셀프테스트</a></footer>
 
   <script src="js/protocol.js"></script>
 <script src="js/ui.js"></script>
