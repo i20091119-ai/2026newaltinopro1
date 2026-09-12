@@ -27,28 +27,55 @@
   .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 12px}
   .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}.status.pending{color:#a86400;border-color:#ffe0a3}
   .stage{flex:1;min-height:0;display:flex}
-  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 18px;width:100%;overflow:auto}
+  /* ⚠ overflow:auto 였다. 패드가 스크롤되는 상자 안에 있으면, 버튼을 누른 채 손가락이
+     조금만 움직여도 브라우저가 '스크롤하려는 것'으로 보고 터치를 취소한다(touchcancel).
+     그래서 전진/후진이 눌렸다 말았다 했다. 꼬리잡기 쪽은 overflow:hidden 이라 멀쩡했다. */
+  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 18px;width:100%;overflow:hidden;display:flex;flex-direction:column;min-height:0}
   .eyebrow{color:var(--sun);font-weight:700;font-size:.85rem;letter-spacing:.08em}
   h1{font-size:1.4rem;margin:2px 0 4px}.lead{color:var(--mut);margin:0 0 8px}
-  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:stretch}
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:stretch;flex:1;min-height:0}
   @media (max-width:820px){.grid{grid-template-columns:1fr}}
-  .panel{background:#f9fdff;border:2px solid #d3e8ff;border-radius:16px;padding:12px 14px}
+  .panel{background:#f9fdff;border:2px solid #d3e8ff;border-radius:16px;padding:12px 14px;
+    display:flex;flex-direction:column;min-height:0;overflow:auto}
   .gauge{display:flex;gap:16px;align-items:center;justify-content:center;margin:2px 0 6px}
   .gbox{text-align:center;min-width:130px}
   .gbox .glab{color:var(--mut);font-size:.85rem}
   .gbox .gval{font-size:2.6rem;font-weight:800;line-height:1.1}
   .gbox.tgt .gval{color:var(--grape)}.gbox.now .gval{color:var(--blue)}
-  .near{height:14px;border-radius:999px;background:linear-gradient(90deg,#ff7a86,#ffb23e,#37c9ad);position:relative;margin:8px 4px 2px}
-  .near::after{content:'가까움 ← → 멈';position:absolute;left:0;right:0;top:16px;font-size:.72rem;color:var(--mut);text-align:center}
-  /* 조종 패드 */
-  .pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;max-width:320px;margin:6px auto 0}
-  .pad button{font-size:1.6rem;padding:16px 0;border-radius:16px;border:2px solid var(--line);background:#fff;box-shadow:var(--shadow);font-family:inherit}
-  .pad button.pressed{background:var(--mint);color:#fff}
+  /* 위치 막대 — 예전엔 그냥 그라데이션 그림이라 아무것도 안 움직였다(정보 0).
+     이제 🎯목표와 🚗지금이 실제로 움직인다. */
+  .track{position:relative;height:18px;border-radius:999px;background:#f3ece0;border:2px solid #efe4d4;margin:26px 4px 22px}
+  .track .zone{position:absolute;top:-2px;bottom:-2px;background:#a6ead6;border-radius:999px;border:2px solid #37c9ad}
+  /* 목표는 세로 막대, 차는 이모지 — 둘이 겹쳐도 각각 보인다 */
+  .track #mkTgt{position:absolute;top:-7px;bottom:-7px;width:4px;background:var(--grape);border-radius:2px;
+    transform:translateX(-50%);transition:left .12s}
+  .track #mkTgt::after{content:'🎯';position:absolute;left:50%;top:-20px;transform:translateX(-50%);font-size:1rem}
+  .track #mkNow{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:1.45rem;line-height:1;
+    transition:left .12s;filter:drop-shadow(0 2px 2px rgba(120,90,50,.3))}
+  .track .lab{position:absolute;top:22px;font-size:.72rem;color:var(--mut)}
+  .track .lab.l{left:0}.track .lab.r{right:0}
+  .guide{text-align:center;font-size:1.15rem;font-weight:700;min-height:1.6em;margin-top:2px}
+  .guide.ok{color:#1b8f6a}.guide.far{color:var(--blue)}.guide.near{color:var(--coral)}
+  /* 무엇을 하는 활동인지 — 해설사가 매번 설명하지 않아도 되게 화면에 박아 둔다 */
+  .howto{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:2px 0 8px}
+  .howto .st{background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 10px;font-size:.86rem;line-height:1.35}
+  .howto .st b{display:block;color:var(--blue);font-size:.8rem;margin-bottom:2px}
+  .tipbar{background:#fff7ea;border:2px solid #ffe0a3;border-radius:12px;padding:8px 12px;font-size:.9rem;margin-bottom:8px}
+  @media (max-width:820px){.howto{grid-template-columns:repeat(2,1fr)}}
+  /* 조종 패드 — 손가락이 조금 움직여도 안 끊기도록 touch-action:none 필수 */
+  /* ⚠ width:100% 가 없으면 세로 flex 안에서 margin:auto 때문에 내용 너비로 쪼그라들어
+     버튼이 가느다란 타원이 된다(실제로 그랬다). */
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:10px;
+    width:100%;max-width:360px;margin:8px auto 0}
+  .pad button{font-size:2rem;padding:22px 0;border-radius:18px;border:2px solid var(--line);background:#fff;
+    box-shadow:var(--shadow);font-family:inherit;touch-action:none;-webkit-user-select:none;user-select:none}
+  .pad button.pressed{background:var(--mint);color:#fff;transform:translateY(2px)}
   .pad .up{grid-column:2;grid-row:1}.pad .left{grid-column:1;grid-row:2}.pad .down{grid-column:2;grid-row:2}.pad .right{grid-column:3;grid-row:2}
+  .padlab{text-align:center;color:var(--mut);font-size:.8rem;margin-top:4px}
   .prob{background:#f6fbff;border:2px solid #d3e8ff;border-radius:14px;padding:12px;font-size:1.15rem;margin:8px 0;text-align:center}
   .fb{min-height:1.3em;color:var(--coral);font-weight:700;margin-top:4px;text-align:center}
   input[type=number]{font-family:inherit;font-size:1.25rem;padding:10px 12px;border-radius:12px;border:2px solid var(--line);text-align:center;width:120px}
-  .scorebar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+  .scorebar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:auto;padding-top:10px}
   .scorebar .sc{background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 14px;text-align:center;min-width:90px}
   .scorebar .sc b{font-size:1.5rem;display:block;color:var(--ink)}
   .scorebar .sc span{color:var(--mut);font-size:.8rem}
@@ -72,27 +99,41 @@
 
   <div class="stage">
     <section class="card">
-      <p class="lead">차를 몰아 <b>목표 거리</b>에 최대한 <b>정확히</b> 멈춰요. 멈춘 뒤 <b>오차 = |목표 − 현재|</b>를 계산하면 점수를 받아요. 오차가 작을수록 고득점! 🏆</p>
+      <div class="howto">
+        <div class="st"><b>① 목표를 본다</b>🎯 <b id="howTgt" style="display:inline;color:var(--grape)">130</b> 이 이번 목표예요</div>
+        <div class="st"><b>② 차를 몬다</b>▲▼ 를 <u>누르고 있는 동안</u> 움직여요. 막대를 보며 맞춰요</div>
+        <div class="st"><b>③ 주차 완료</b>딱 맞다 싶으면 🅿️ 버튼을 눌러 그 자리 거리를 재요</div>
+        <div class="st"><b>④ 오차 계산</b>|목표 − 실제| 를 계산하면 점수가 나와요</div>
+      </div>
+      <div class="tipbar">💡 <b>앞거리 숫자</b>는 앞 벽까지의 거리예요 — <b>벽에 가까울수록 작아지고</b>, 멀수록 커져요.
+        오차가 <b>5 이하</b>면 ⭐⭐⭐ 랍니다.</div>
       <div class="grid">
         <!-- 왼쪽: 게이지 + 조종 -->
         <div class="panel">
           <div class="gauge">
-            <div class="gbox tgt"><div class="glab">🎯 목표 거리(TOF)</div><div class="gval" id="targetVal">120</div></div>
+            <div class="gbox tgt"><div class="glab">🎯 목표 거리</div><div class="gval" id="targetVal">120</div></div>
             <div class="gbox now"><div class="glab">🚗 지금 앞거리</div><div class="gval" id="frontNow">–</div></div>
           </div>
-          <div class="near"></div>
+          <div class="track" id="track">
+            <div class="zone" id="tgtZone"></div>
+            <div id="mkTgt" style="left:50%"></div>
+            <div id="mkNow" style="left:50%">🚗</div>
+            <div class="lab l">벽에 가까움</div><div class="lab r">멀리</div>
+          </div>
+          <div class="guide" id="guide">연결하고 ▲▼ 로 움직여 보세요</div>
           <div class="pad">
             <button class="up" id="d-up">▲</button>
             <button class="left" id="d-left">◀</button>
             <button class="down" id="d-down">▼</button>
             <button class="right" id="d-right">▶</button>
           </div>
+          <div class="padlab">▲ 앞으로 · ▼ 뒤로 · ◀ ▶ 는 방향만 (누르고 있는 동안 움직여요)</div>
           <div style="text-align:center;margin-top:10px"><button id="parkBtn" class="btn sun big">🅿️ 주차 완료 · 측정!</button></div>
         </div>
         <!-- 오른쪽: 채점(오차 수학) -->
         <div class="panel" style="background:#fffdf7;border-color:#ffe0a3">
           <div class="eyebrow">📐 오차 계산 · 채점</div>
-          <div id="preMeasure" class="lead" style="margin-top:8px">차를 목표 거리에 맞춰 세운 뒤 <b>[주차 완료]</b>를 누르세요. 그러면 오차 계산 문제가 나와요.</div>
+          <div id="preMeasure" class="lead" style="margin-top:8px">차를 목표 거리에 맞춰 세운 뒤 <b>[🅿️ 주차 완료 · 측정!]</b>을 누르세요.<br>그러면 여기에 <b>오차 계산 문제</b>가 나와요.</div>
           <div id="scoreArea" class="hidden">
             <div class="prob" id="errProb">오차 = | 목표 − 현재 | = ?</div>
             <div style="text-align:center"><input id="errInput" type="number" placeholder="?"> <button id="errOk" class="btn">확인</button></div>

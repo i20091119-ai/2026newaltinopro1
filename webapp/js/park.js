@@ -10,12 +10,19 @@
   const state = new P.AltinoState();
   const assembler = new P.SensorFrameAssembler();
   let transport = null, streamTimer = null;
-  const STREAM_MS = 50;
+  // ⚠ 50(20Hz)이었다. 다른 화면은 전부 100(10Hz)로 내렸는데 여기만 남아 있었다.
+  //   12대가 동시에 20Hz로 쏘면 블루투스가 밀려 명령이 씹힌다 — '버튼이 잘 안 먹는' 증상.
+  const STREAM_MS = 100;
   // (재연결은 네이티브가 담당 — JS 타이머 불필요)
 
-  const DRIVE = 250;          // 정밀 조작을 위해 순항보다 느리게
+  // 정밀 조작이라 순항보다 느리게 간다. 그런데 250은 제자리에서 출발할 때
+  // 모터가 못 이기고 안 도는 일이 있었다(꼬리잡기의 최저 속도가 330인 이유와 같다).
+  // → 출발하는 순간만 짧게 세게 밀어 주고(KICK), 곧 느린 속도로 떨어뜨린다.
+  const DRIVE = 250;
+  const KICK = 400, KICK_MS = 180;
   const STEER = 100;
   const intent = { drive: 0, steer: 0 };
+  let kickUntil = 0, lastDrive = 0;
 
   // 챌린지 상태
   let target = 120;           // 목표 TOF
@@ -34,11 +41,13 @@
     target = t;
     snapshot = null;
     $('targetVal').textContent = target;
+    if ($('howTgt')) $('howTgt').textContent = target;
+    renderTrack();
     $('scoreArea').classList.add('hidden');
     $('preMeasure').classList.remove('hidden');
     $('resultBox').classList.add('hidden');
     $('errInput').value = ''; $('errFb').textContent = '';
-    intent.drive = 0;
+    intent.drive = 0; intent.steer = 0;
   }
 
   function startStream() { stopStream(); streamTimer = setInterval(tick, STREAM_MS); }
@@ -55,9 +64,40 @@
 
   function tick() {
     if (inputBlocked()) { intent.drive = 0; intent.steer = 0; }
-    const m = intent.drive * DRIVE;
+    // 멈춰 있다가 막 출발하는 순간에만 KICK — 그 뒤로는 느린 DRIVE 로 정밀하게
+    if (intent.drive !== 0 && lastDrive === 0) kickUntil = Date.now() + KICK_MS;
+    lastDrive = intent.drive;
+    const speed = (Date.now() < kickUntil) ? KICK : DRIVE;
+    const m = intent.drive * speed;
     state.go(m, m); state.steer(intent.steer);
     if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
+  }
+
+  // 막대에서 값이 놓일 자리(0~100%). 벽에 붙으면 왼쪽, 멀면 오른쪽.
+  const TRACK_MIN = 60, TRACK_MAX = 320;
+  const pos = (v) => Math.max(0, Math.min(100, ((v - TRACK_MIN) / (TRACK_MAX - TRACK_MIN)) * 100));
+  const OK_BAND = 5;                     // 이 안이면 ⭐⭐⭐
+  function renderTrack() {
+    const mt = $('mkTgt'), mn = $('mkNow'), zn = $('tgtZone'), gd = $('guide');
+    if (!mt) return;
+    mt.style.left = pos(target) + '%';
+    const lo = pos(target - OK_BAND), hi = pos(target + OK_BAND);
+    if (zn) {                      // 실제 폭이 얇아도 눈에 보이게 최소 폭을 준다
+      const w = Math.max(6, hi - lo);
+      zn.style.left = Math.max(0, lo - (w - (hi - lo)) / 2) + '%';
+      zn.style.width = w + '%';
+    }
+    if (front == null) {
+      mn.style.display = 'none';
+      if (gd) { gd.textContent = '로봇을 연결하고 ▲▼ 로 움직여 보세요'; gd.className = 'guide'; }
+      return;
+    }
+    mn.style.display = ''; mn.style.left = pos(front) + '%';
+    if (!gd) return;
+    const d = front - target;            // +면 목표보다 멀다(앞으로 더 가야 함)
+    if (Math.abs(d) <= OK_BAND) { gd.textContent = '딱 좋아요! 🅿️ 주차 완료를 누르세요 🎯'; gd.className = 'guide ok'; }
+    else if (d > 0) { gd.textContent = `▲ 조금 더 앞으로 — ${d} 남았어요`; gd.className = 'guide far'; }
+    else { gd.textContent = `▼ 너무 가까워요 — ${-d} 만큼 뒤로`; gd.className = 'guide near'; }
   }
 
   const BATT_LOW = 700; let battWarned = false, lastUi = 0;
@@ -66,6 +106,7 @@
     const now = Date.now(); if (now - lastUi < 200) return; lastUi = now;
     if ($('frontNow')) $('frontNow').textContent = front;
     if ($('frontChip')) $('frontChip').textContent = front;
+    renderTrack();
     const c = $('battChip');
     if (c && s.battery > 0) { c.style.display = ''; c.textContent = '🔋 ' + s.battery; const low = s.battery < BATT_LOW; c.classList.toggle('err', low); if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체'); } if (!low) battWarned = false; }
   }
@@ -110,14 +151,36 @@
   }
 
   // ---- 조종 ----
+  // 누르고 있는 동안만 움직인다.
+  // ⚠ 예전엔 mouseleave 로도 손을 뗀 것으로 처리했다. 손가락이 버튼 가장자리에서
+  //   조금만 미끄러져도 차가 멈춰, 아이들 눈에는 '버튼이 안 먹는다'로 보였다.
+  //   포인터를 이 버튼에 붙잡아 두면(setPointerCapture) 밖으로 나가도 놓을 때까지 유지된다.
   function bindHold(el, onDown, onUp) {
-    const d = (e) => { e.preventDefault(); onDown(); el.classList.add('pressed'); };
-    const u = (e) => { if (e) e.preventDefault(); onUp(); el.classList.remove('pressed'); };
-    el.addEventListener('touchstart', d, { passive: false });
-    el.addEventListener('touchend', u, { passive: false });
-    el.addEventListener('touchcancel', u, { passive: false });
-    el.addEventListener('mousedown', d); el.addEventListener('mouseup', u);
-    el.addEventListener('mouseleave', (e) => { if (el.classList.contains('pressed')) u(e); });
+    let held = false;
+    const down = (e) => {
+      if (held) return; held = true;
+      if (e.cancelable) e.preventDefault();
+      try { if (e.pointerId != null) el.setPointerCapture(e.pointerId); } catch (err) {}
+      onDown(); el.classList.add('pressed');
+    };
+    const up = (e) => {
+      if (!held) return; held = false;
+      if (e && e.cancelable) e.preventDefault();
+      onUp(); el.classList.remove('pressed');
+    };
+    if (window.PointerEvent) {
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    } else {
+      el.addEventListener('touchstart', down, { passive: false });
+      el.addEventListener('touchend', up, { passive: false });
+      el.addEventListener('touchcancel', up, { passive: false });
+      el.addEventListener('mousedown', down); el.addEventListener('mouseup', up);
+      el.addEventListener('mouseleave', (e) => { if (held) up(e); });
+    }
+    // 어떤 경로로든 창을 벗어나면 반드시 놓은 것으로 — 눌린 채 남아 차가 계속 가는 일 방지
+    window.addEventListener('blur', () => { if (held) up(null); });
   }
 
   // ---- 연결 (BLE 무페어링, tag/mode1과 동일: 바인딩된 로봇 자동 이어받기·재연결은 네이티브) ----
@@ -217,8 +280,15 @@
   }
 
   function init() {
-    bindHold($('d-up'),    () => intent.drive = 1,  () => intent.drive = 0);
-    bindHold($('d-down'),  () => intent.drive = -1, () => intent.drive = 0);
+    // 연결 전에 눌러 놓고 '왜 안 가지?' 하는 일이 잦다 — 이유를 바로 말해 준다.
+    let noConnWarned = 0;
+    const warnIfOffline = () => {
+      if (transport && transport.connected) return;
+      const now = Date.now();
+      if (now - noConnWarned > 2500) { noConnWarned = now; toast('로봇이 연결되어 있지 않아요 — 오른쪽 위 [🔗 연결]'); }
+    };
+    bindHold($('d-up'),    () => { warnIfOffline(); intent.drive = 1; },  () => intent.drive = 0);
+    bindHold($('d-down'),  () => { warnIfOffline(); intent.drive = -1; }, () => intent.drive = 0);
     bindHold($('d-left'),  () => intent.steer = -STEER, () => intent.steer = 0);
     bindHold($('d-right'), () => intent.steer = STEER,  () => intent.steer = 0);
     $('parkBtn').onclick = park;
