@@ -32,9 +32,29 @@
   let caught = 0;
   let rearThresh = 50;                  // ir6 < thresh → 붙음 (TOF: 가까울수록 작음). 50↑는 너무 잘 걸림
   const RELEASE_GAP = 60;
-  const MIN_INTERVAL_TICKS = 60;        // ~1.2s 재카운트 방지 (50ms*24=1.2s → 여기선 프레임 기준 보수적)
+  // 재카운트 방지 시간. ⚠ 예전엔 60(프레임)으로 적혀 있었는데 STREAM_MS 가 100ms 라
+  //   실제로는 6초였다 — 쫓아오는 차가 연달아 부딪쳐도 첫 번만 세고 나머지를 버렸다.
+  //   ms 로 적어 STREAM_MS 가 바뀌어도 뜻이 유지되게 한다.
+  const MIN_INTERVAL_TICKS = Math.round(1200 / STREAM_MS);   // 1.2초
   let armed = true, cooldown = 0;
   let soundTicks = 0, ledTicks = 0;
+
+  // 지금 조작을 받으면 안 되는 상태인가.
+  // ⚠ 게임화면 여부만 보던 때는, 문제 풀이창·연결창·확인창이 '게임화면 위에' 뜨므로
+  //   패드를 누른 채 창이 열리면 차가 계속 달렸다. 실제로 잘 나오는 순서가 있다:
+  //   에너지 0 → 차가 안 움직이니 손을 안 뗌 → 충전소를 눌러 문제를 풀고 → 에너지가
+  //   채워지는 순간 아이가 화면을 보는 사이 차가 튀어나간다.
+  function inputBlocked() {
+    if ($('gameScreen').classList.contains('hidden')) return true;
+    for (const id of ['repairModal', 'connModal']) {
+      const el = $(id); if (el && !el.classList.contains('hidden')) return true;
+    }
+    const cf = document.getElementById('altinoConfirm');
+    if (cf && cf.style.display === 'flex') return true;
+    const cal = document.getElementById('dotCalOverlay');
+    if (cal && cal.style.display !== 'none' && cal.offsetParent !== null) return true;
+    return false;
+  }
 
   // ---- 주행 의도 (에너지로 게이팅) ----
   const intent = { drive: 0, steer: 0 }; // drive: -1/0/1
@@ -43,6 +63,8 @@
   let selectedGrade = 'e3';
   // 게임 안 '학년 바꾸기'로 온 것인지 구분 — 그때만 진행(에너지·코인)을 유지한다.
   // 홈에서 새로 들어와 학년을 고르면 '다음 학생'이므로 새 판으로 시작.
+  let changingGradeAt = 0;
+  const KEEP_TTL_MS = 60 * 1000;     // '학년 바꾸기' 표시 유효시간
   let changingGrade = false;
 
   // ---- 효과음 (합성 WAV) ----
@@ -74,7 +96,7 @@
     // 게임화면이 아니면(학년 선택 등) 조작 의도를 비운다.
     // 패드를 누른 채 화면을 바꾸면 touchend가 안 와 intent가 붙잡혀 있었고,
     // 그 상태로 에너지가 계속 닳고 차도 계속 달렸다(학년 바꿀 때마다 에너지가 달라지던 원인).
-    if ($('gameScreen').classList.contains('hidden')) { intent.drive = 0; intent.steer = 0; }
+    if (inputBlocked()) { intent.drive = 0; intent.steer = 0; }
     const wantMove = intent.drive !== 0;
     const canMove = energy > 0 && wantMove;
     // 에너지 소모 (실제로 움직일 때만)
@@ -176,6 +198,10 @@
       if ($('rearNow')) $('rearNow').textContent = rear;
     }
 
+    // 시작(학년 선택) 화면에서는 세지 않는다 — 아이가 차를 들고 오거나 벽에 붙여 두면
+    // 다음 학생의 점수와 에너지가 깎였다. (센서 숫자 갱신은 위에서 계속 하므로 튜닝은 가능)
+    if ($('gameScreen').classList.contains('hidden')) return;
+
     if (armed && rear < rearThresh && cooldown === 0) {
       caught++; $('caughtVal').textContent = caught;
       energy = Math.max(0, energy - CAUGHT_PENALTY);
@@ -187,6 +213,15 @@
       armed = false; cooldown = MIN_INTERVAL_TICKS;
     }
     if (!armed && rear > rearThresh + RELEASE_GAP) armed = true;
+  }
+
+  // 즉시 정지 — 틱을 기다리지 않고 지금 프레임을 보낸다.
+  function panicStop() {
+    intent.drive = 0; intent.steer = 0;
+    try { state.go(0, 0); state.steer(0); } catch (e) {}
+    if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
+    // 아직 한 판도 안 했다면 빈 기록을 새로 쓰지 않는다(안 한 판이 '이어서 하기'로 뜨던 문제)
+    if (!$('gameScreen').classList.contains('hidden')) saveState();
   }
 
   function beepFlash() {
@@ -376,15 +411,29 @@
       if (!o || !o.g) return false;
       // 시각이 없거나(구버전 저장) 20분이 지났으면 이어하기 대상이 아니다 → 저장 삭제
       if (!o.t || (Date.now() - o.t) > RESUME_TTL_MS) { clearState(); return false; }
-      energy = (o.e != null) ? o.e : 500;
-      coins = o.c || 0;
-      speedTier = Math.min(o.s || 0, SPEED_TIERS.length - 1);
+      // ⚠ 저장값을 그대로 믿지 않는다. 값이 망가져 있으면(버전이 바뀌었거나 손으로
+      //   고쳤거나) speedTier 가 음수가 되어 SPEED_TIERS[-3] = undefined → 속도 NaN →
+      //   차가 아예 안 움직이는데 화면엔 이유가 안 나오는 상태가 된다.
+      const num = (v, d, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : d; };
+      if (!window.AltinoProblems.GRADE_POOLS[o.g]) { clearState(); return false; }
+      energy = num(o.e, 500, 0, ENERGY_MAX);
+      coins = num(o.c, 0, 0, 9999);
+      speedTier = num(o.s, 0, 0, SPEED_TIERS.length - 1);
       // 구버전 저장본(mx 없음)은 현재 단계까지 구매한 것으로 간주
-      maxTier = Math.min(Math.max(o.mx != null ? o.mx : speedTier, speedTier), SPEED_TIERS.length - 1);
-      caught = o.ca || 0;
+      maxTier = Math.min(SPEED_TIERS.length - 1, Math.max(num(o.mx, speedTier, 0, SPEED_TIERS.length - 1), speedTier));
+      caught = num(o.ca, 0, 0, 999);
       selectedGrade = o.g;
       return true;
     } catch (e) { return false; }
+  }
+
+  // 새 판 초기화 — 한 곳에서만. ⚠ armed/cooldown 을 같이 되돌리지 않으면,
+  //   쫓던 차가 꽁무니에 붙은 채로 새 판을 누를 때 armed 가 false 로 남아
+  //   두 차가 물리적으로 떨어질 때까지 새 판의 잡힘이 0으로만 나온다.
+  function newGame() {
+    caught = 0; energy = 500; coins = 0; speedTier = 0; maxTier = 0;
+    armed = true; cooldown = 0;
+    clearState();
   }
 
   function enterGame() {
@@ -400,11 +449,13 @@
   function pickGrade(g) {
     unlockAudio();
     selectedGrade = g;
-    if (!changingGrade) {        // 홈에서 새로 들어옴 = 다음 학생 → 새 판
-      caught = 0; energy = 500; coins = 0; speedTier = 0; maxTier = 0;
-      clearState();
-    }
+    // ⚠ '학년 바꾸기' 표시는 오래 남겨두면 안 된다. A학생이 누르고 자리를 뜬 뒤
+    //   B학생이 앉아 학년을 고르면 A의 코인·속도·잡힌 횟수를 그대로 물려받는다.
+    //   눌러 놓고 1분이 지나면 다음 학생으로 본다.
+    const keep = changingGrade && (Date.now() - changingGradeAt) < KEEP_TTL_MS;
+    if (!keep) newGame();        // 홈에서 새로 들어옴 = 다음 학생 → 새 판
     changingGrade = false;
+    if ($('keepNote')) $('keepNote').classList.add('hidden');
     enterGame();
   }
 
@@ -414,10 +465,13 @@
       b.addEventListener('click', () => pickGrade(b.dataset.grade));
     });
     $('changeGradeBtn') && $('changeGradeBtn').addEventListener('click', () => {
-      intent.drive = 0; intent.steer = 0;        // 손 떼지 않고 눌러도 차가 멈추도록
-      changingGrade = true;                      // 같은 학생이 난이도만 바꾸는 것 → 진행 유지
+      panicStop();                               // 손 떼지 않고 눌러도 차가 바로 멈추도록
+      changingGrade = true; changingGradeAt = Date.now();   // 같은 학생이 난이도만 바꿈 → 진행 유지
+      if ($('keepNote')) $('keepNote').classList.remove('hidden');
       $('gameScreen').classList.add('hidden');
       $('startScreen').classList.remove('hidden');
+      // 시작 화면의 '이어서 하기' 안내는 페이지를 열 때 한 번만 쓰여 값이 옛것으로 남았다
+      if ($('resumeInfo')) $('resumeInfo').textContent = `(에너지 ${Math.round(energy)} · 코인 ${coins} · 잡힘 ${caught})`;
     });
 
     bindHold($('d-up'),    () => intent.drive = 1,  () => intent.drive = 0);
@@ -461,8 +515,7 @@
                 `· 잡힌 횟수 ${caught}회   · 코인 ${coins}개   · 속도 ${speedNow()}`],
         okText: '네, 새 판 시작',
       })) return;
-      caught = 0; energy = 500; coins = 0; speedTier = 0; maxTier = 0;
-      clearState();   // 새 판 = 저장된 진행 삭제(다음 학생은 처음부터)
+      newGame();      // 새 판 = 저장된 진행 삭제(다음 학생은 처음부터)
       $('caughtVal').textContent = 0; updateEnergyUI(); updateShopUI(); drawCount(0); toast('새 판 시작!');
     });
 
@@ -491,8 +544,14 @@
       else toast('실기(APK)에서만 블루투스 설정을 열 수 있어요');
     });
 
-    window.addEventListener('blur', () => { intent.drive = 0; saveState(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { intent.drive = 0; saveState(); } });
+    // ⚠ 예전엔 intent 만 0으로 두고 실제 정지 프레임은 '다음 100ms 틱'에 맡겼다.
+    //   그런데 홈 버튼·화면 꺼짐·페이지 이동 시 WebView 타이머가 멈춰 그 틱이 영영
+    //   안 올 수 있다. 로봇은 마지막으로 받은 프레임을 계속 실행하므로, 패드를 누른 채
+    //   ← 홈을 누르면 '멈추라고 말해 줄 화면이 없는 채로' 차가 계속 달린다.
+    //   그래서 여기서 동기적으로 정지 프레임을 쏜다. (네이티브 링크는 페이지 이동에도 살아있음)
+    window.addEventListener('blur', panicStop);
+    window.addEventListener('pagehide', panicStop);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) panicStop(); });
 
     // 저장된 진행이 있어도 '자동으로' 게임화면에 들어가지 않는다.
     // (예전엔 자동 진입이라 홈→꼬리잡기 시 학년 선택이 잠깐 떴다 사라져 오류처럼 보였다)

@@ -14,7 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════
 'use strict';
 (function () {
-  let ov = null, resolver = null;
+  let ov = null, resolver = null, shownAt = 0;
 
   function build() {
     ov = document.createElement('div');
@@ -37,8 +37,14 @@
     document.body.appendChild(ov);
     ov.querySelector('#acNo').addEventListener('click', () => done(false));
     ov.querySelector('#acYes').addEventListener('click', () => done(true));
-    // 바깥을 눌러도 '취소' — 실수로 진행되는 쪽이 없도록
-    ov.addEventListener('click', (e) => { if (e.target === ov) done(false); });
+    // 바깥을 눌러도 '취소' — 실수로 진행되는 쪽이 없도록.
+    // ⚠ 단, 창이 뜬 직후 350ms 는 무시한다. 아이들은 버튼을 습관적으로 두 번 누르는데,
+    //   두 번째 탭이 갓 생긴 배경에 떨어져 '아니요'가 되면 버튼이 먹통처럼 보인다.
+    ov.addEventListener('click', (e) => {
+      if (e.target !== ov) return;
+      if (Date.now() - shownAt < 350) return;
+      done(false);
+    });
   }
 
   function done(v) {
@@ -62,6 +68,7 @@
     yes.style.background = (o.danger === false) ? '#37c9ad' : '#ff7a86';
     ov.querySelector('#acNo').textContent = o.cancelText || '아니요';
     ov.style.display = 'flex';
+    shownAt = Date.now();
     return new Promise((res) => { resolver = res; });
   }
 

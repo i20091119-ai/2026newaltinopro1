@@ -43,7 +43,18 @@
 
   function startStream() { stopStream(); streamTimer = setInterval(tick, STREAM_MS); }
   function stopStream() { if (streamTimer) { clearInterval(streamTimer); streamTimer = null; } }
+  // 연결창·확인창이 떠 있으면 조작을 받지 않는다 — 패드를 누른 채 창이 열리면
+  // 차가 계속 달렸다(꼬리잡기와 같은 문제).
+  function inputBlocked() {
+    const ov = $('scanOverlay');
+    if (ov && !ov.classList.contains('hidden')) return true;
+    const cf = document.getElementById('altinoConfirm');
+    if (cf && cf.style.display === 'flex') return true;
+    return false;
+  }
+
   function tick() {
+    if (inputBlocked()) { intent.drive = 0; intent.steer = 0; }
     const m = intent.drive * DRIVE;
     state.go(m, m); state.steer(intent.steer);
     if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
@@ -164,7 +175,9 @@
         if (!await AltinoUI.confirm({ title: '이 태블릿의 짝을 해제할까요?',
           lines: ['지금 연결된 로봇과의 짝이 풀리고 연결이 끊겨요.', '다른 로봇을 새로 골라야 해요.'],
           okText: '네, 짝 해제' })) return;
-        try { new T.AndroidBridgeTransport().unbind(); } catch (e) {} toast('짝 해제됨 — 새 로봇을 고르세요'); renderScan(); };
+        try { new T.AndroidBridgeTransport().unbind(); } catch (e) {}
+        disconnect();   // 짝만 풀고 연결을 남겨두면, 방금 남남이 된 로봇에 계속 프레임을 쏜다
+        toast('짝 해제됨 — 새 로봇을 고르세요'); renderScan(); };
       ov.querySelector('#scanSearch').addEventListener('input', renderScan);
     }
     ov.classList.remove('hidden');
@@ -210,8 +223,16 @@
     $('btSettings').onclick = () => { if (T.AndroidBridgeTransport.supported) new T.AndroidBridgeTransport().openSettings(); else toast('실기(APK)에서만 열려요'); };
     $('status').addEventListener('click', () => { if (T.AndroidBridgeTransport.supported) pickAndConnect(); });
 
-    window.addEventListener('blur', () => intent.drive = 0);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) intent.drive = 0; });
+    // 틱을 기다리지 않고 지금 정지 프레임을 보낸다. WebView가 백그라운드로 가면
+    // 타이머가 멈춰 그 틱이 영영 안 올 수 있고, 로봇은 마지막 프레임을 계속 실행한다.
+    const panicStop = () => {
+      intent.drive = 0; intent.steer = 0;
+      try { state.go(0, 0); state.steer(0); } catch (e) {}
+      if (transport && transport.connected) { try { transport.send(P.buildFrame(state)); } catch (e) {} }
+    };
+    window.addEventListener('blur', panicStop);
+    window.addEventListener('pagehide', panicStop);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) panicStop(); });
 
     newRound();
     startStream();

@@ -122,8 +122,9 @@
     const show = () => {
       ov.querySelector('#dcName').textContent = ORIENTS[pick].label;
       const saved = orient; orient = pick;          // 미리보기 동안만 임시 적용
-      drawGlyph(state, TEST_F, 2, 1);
-      orient = saved;
+      // finally 로 반드시 되돌린다 — 도중에 예외가 나면 방향이 임시값으로 굳어
+      // 이후 모든 숫자가 조용히 틀어진 채로 나온다(저장은 안 됐으니 원인 찾기도 어렵다)
+      try { drawGlyph(state, TEST_F, 2, 1); } finally { orient = saved; }
       try { send(); } catch (e) {}
     };
     ov.querySelector('#dcPrev').onclick = () => { pick = (pick + ORIENTS.length - 1) % ORIENTS.length; show(); };
