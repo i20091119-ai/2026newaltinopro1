@@ -4,41 +4,41 @@
   @font-face{font-family:'Esamanru';src:url('esamanru-medium.woff2') format('woff2');font-weight:500}
   @font-face{font-family:'Esamanru';src:url('esamanru-bold.woff2') format('woff2');font-weight:700}
   @font-face{font-family:'Esamanru';src:url('esamanru-light.woff2') format('woff2');font-weight:300}
-  @page{size:A4;margin:30mm 11mm 6mm 11mm}
+  @page{size:A4;margin:20mm 11mm 20mm 11mm}
   *{box-sizing:border-box}
   /* ⑤조립·⑥결과·⭐심화를 활동지에서 빼고(앱에서 진행), 남은 ①~④를 크게 키운 판. */
-  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0;font-size:15px;line-height:1.42}
+  body{font-family:'Esamanru',sans-serif;font-weight:500;color:#3a3230;margin:0;font-size:15.5px;line-height:1.43}
   b{font-weight:700}
   /* 헤더 */
   .head{display:flex;align-items:center;gap:16px}
-  .head h1{font-weight:700;font-size:24px;margin:0;white-space:nowrap}
+  .head h1{font-weight:700;font-size:25px;margin:0;white-space:nowrap}
   .head .sub{color:#9b8f86;font-weight:300;font-size:13.5px;margin:2px 0 0;white-space:nowrap}
   .head .id{margin-left:auto;display:flex;gap:8px;align-items:center;flex:none}
   /* 스텝 리본 */
-  .ribbon{display:flex;gap:7px;margin:8px 0 7px}
-  .ribbon span{flex:1;text-align:center;font-size:13.5px;font-weight:700;color:#fff;border-radius:9px;padding:4px 0}
+  .ribbon{display:flex;gap:7px;margin:6px 0 6px}
+  .ribbon span{flex:1;text-align:center;font-size:14.5px;font-weight:700;color:#fff;border-radius:9px;padding:4px 0}
   .r1{background:#5ea0ff}.r2{background:#37c9ad}.r3{background:#ffb23e;color:#5a3200}.r4{background:#ff7a86}
   /* 서사 */
-  .story{background:linear-gradient(180deg,#fff3e0,#fff);border:2.5px solid #ffe0a3;border-radius:12px;padding:6px 12px;font-size:13.5px;line-height:1.4;margin-bottom:7px}
+  .story{background:linear-gradient(180deg,#fff3e0,#fff);border:2.5px solid #ffe0a3;border-radius:12px;padding:5px 12px;font-size:14px;line-height:1.4;margin-bottom:7px}
   /* 스텝 카드 */
-  .step{border:2.5px solid #f0e6d8;border-radius:14px;padding:7px 13px;margin-bottom:5px;page-break-inside:avoid;position:relative}
-  .step h2{font-size:17px;margin:0 0 6px;color:#fff;display:inline-block;padding:4px 13px;border-radius:10px}
+  .step{border:2.5px solid #f0e6d8;border-radius:14px;padding:6px 13px;margin-bottom:4px;page-break-inside:avoid;position:relative}
+  .step h2{font-size:18.5px;margin:0 0 6px;color:#fff;display:inline-block;padding:4px 13px;border-radius:10px}
   .s1 h2{background:#5ea0ff}.s2 h2{background:#37c9ad}.s3 h2{background:#ffb23e;color:#5a3200}.s4 h2{background:#ff7a86}
   .step .tag{position:absolute;top:12px;right:14px;font-size:12px;color:#b7a89a;font-weight:700}
-  .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;line-height:1.7;font-size:16px}
+  .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;line-height:1.6;font-size:16.5px}
   .blank{display:inline-block;min-width:90px;border-bottom:3px solid #3a3230;text-align:center;font-weight:700;color:#7a4fd0;height:26px;vertical-align:bottom}
   .blank.w{min-width:230px}.blank.s{min-width:58px}
-  .bigbox{display:inline-block;border:3px solid #37c9ad;border-radius:11px;min-width:108px;height:34px;vertical-align:middle;background:#effbf6;margin-left:5px}
+  .bigbox{display:inline-block;border:3px solid #37c9ad;border-radius:11px;min-width:108px;height:35px;vertical-align:middle;background:#effbf6;margin-left:5px}
   .bigbox.p{border-color:#b085ff;background:#f6f1ff}.bigbox.c{border-color:#ff7a86;background:#fff2f1}.bigbox.o{border-color:#ffb23e;background:#fff8ec}
-  .hint{background:#f6fbff;border:1.8px solid #d3e8ff;border-radius:10px;padding:5px 11px;font-size:13px;margin-top:6px;color:#5578a8;line-height:1.6}
-  .work{border:2px dashed #cdbfae;border-radius:10px;background:#fffdf8;height:34px;margin-top:4px}
+  .hint{background:#f6fbff;border:1.8px solid #d3e8ff;border-radius:10px;padding:4px 11px;font-size:13.5px;margin-top:6px;color:#5578a8;line-height:1.55}
+  .work{border:2px dashed #cdbfae;border-radius:10px;background:#fffdf8;height:30px;margin-top:4px}
   .worklab{font-size:12px;color:#b7a89a;margin:5px 0 0 3px}
-  table{border-collapse:collapse;font-size:15px;margin:5px 0;width:100%}
-  th,td{border:2px solid #e8dcc8;padding:4px 6px;text-align:center}th{background:#fff3e0;color:#9b8f86}
+  table{border-collapse:collapse;font-size:16px;margin:5px 0;width:100%}
+  th,td{border:2px solid #e8dcc8;padding:3.5px 6px;text-align:center}th{background:#fff3e0;color:#9b8f86}
   /* 계이름 */
   .scale{display:flex;gap:6px;margin-top:5px}
-  .scale span{flex:1;text-align:center;border:2px solid #ffe0a3;border-radius:9px;padding:4px 0;font-size:15px;background:#fff8ec}
-  .foot{color:#9b8f86;font-size:12px;font-weight:300;margin-top:6px;text-align:center}
+  .scale span{flex:1;text-align:center;border:2px solid #ffe0a3;border-radius:9px;padding:3px 0;font-size:16px;background:#fff8ec}
+  .foot{color:#9b8f86;font-size:12px;font-weight:300;margin-top:4px;text-align:center}
 </style></head>
 <body>
   <div class="head">
