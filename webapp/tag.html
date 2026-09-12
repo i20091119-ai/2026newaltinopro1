@@ -66,6 +66,10 @@
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .gradechip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 14px;font-size:1rem;box-shadow:var(--shadow)}
   .gradechip b{color:var(--coral)}
+  /* 내 로봇 번호: 멀리서도 보이게 크게 */
+  .robotchip{background:#fff;border:2px solid var(--line);border-radius:999px;padding:4px 18px;
+    box-shadow:var(--shadow);font-size:1rem;color:var(--mut);white-space:nowrap}
+  .robotchip b{font-size:1.65rem;color:var(--blue);letter-spacing:.04em;vertical-align:-2px}
   .status{font-size:.85rem;color:var(--mut);background:#fff;border:2px solid var(--line);border-radius:999px;padding:5px 12px}
   .status.ok{color:#1b8f6a;border-color:#b9ecdc}.status.err{color:#c0392b;border-color:#f6c9c4}
 
@@ -176,6 +180,8 @@
   <section id="gameScreen" class="hidden">
     <div class="topbar">
       <div class="gradechip"><b id="gradeLabel">초3</b> 친구</div>
+      <!-- 내 로봇 블루투스 번호(스티커 번호) — 상단 빈 공간에 크게 -->
+      <div class="robotchip">🚗 <b id="robotNo">—</b></div>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="changeGradeBtn" class="btn ghost" style="padding:6px 12px;font-size:.85rem">학년 바꾸기</button>
         <!-- 새 판: 조종 영역 밖(상단)으로 분리 + 확인창 — 게임 중 오터치로 기록 날아가는 사고 방지 -->

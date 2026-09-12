@@ -68,6 +68,10 @@
 
   // 스트림 틱: 에너지 게이팅 + 소모 + 비프/플래시 감쇠 + 전송
   function tick() {
+    // 게임화면이 아니면(학년 선택 등) 조작 의도를 비운다.
+    // 패드를 누른 채 화면을 바꾸면 touchend가 안 와 intent가 붙잡혀 있었고,
+    // 그 상태로 에너지가 계속 닳고 차도 계속 달렸다(학년 바꿀 때마다 에너지가 달라지던 원인).
+    if ($('gameScreen').classList.contains('hidden')) { intent.drive = 0; intent.steer = 0; }
     const wantMove = intent.drive !== 0;
     const canMove = energy > 0 && wantMove;
     // 에너지 소모 (실제로 움직일 때만)
@@ -238,8 +242,17 @@
   function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1200); }
 
   // ---- 연결 ----
+  // 상단에 현재 짝 로봇의 블루투스 번호(스티커 번호)를 크게 표시
+  function updateRobotChip() {
+    const el = $('robotNo'); if (!el) return;
+    if (!T.AndroidBridgeTransport.supported) { el.textContent = '데모'; return; }
+    const st = new T.AndroidBridgeTransport().state();
+    el.textContent = st.address ? stickerCode(st.name, st.address) : '—';
+  }
+
   function wireNative(t) {   // 상태는 'base:detail' → base로 판별. 재연결은 네이티브가 자동 수행
     t.on('status', (s) => {
+      updateRobotChip();
       const b = String(s).split(':')[0];
       if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
       else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
@@ -383,6 +396,7 @@
       b.addEventListener('click', () => pickGrade(b.dataset.grade));
     });
     $('changeGradeBtn') && $('changeGradeBtn').addEventListener('click', () => {
+      intent.drive = 0; intent.steer = 0;        // 손 떼지 않고 눌러도 차가 멈추도록
       $('gameScreen').classList.add('hidden');
       $('startScreen').classList.remove('hidden');
     });
@@ -452,6 +466,7 @@
     }
 
     updateEnergyUI();
+    updateRobotChip();
     startStream();                       // 게임 루프는 항상 가동(연결 전에도 UI 동작), 전송은 연결 시에만
     if (T.AndroidBridgeTransport.supported) {
       setStatus('🔗 연결 안 됨', 'off'); nativeStart();   // 연결됨→입양 / 바인딩됨→그 로봇 / 없음→스캔 선택
