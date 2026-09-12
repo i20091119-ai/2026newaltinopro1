@@ -31,6 +31,10 @@
   let DRIVE = 300, STEER = 30;              // 순항 속도 / 벽 근접 시 살짝 틀기
   let TURN = 127;                           // 정면 벽 회피 회전(강하게 꺾기)
   const WF_BACK = -300, HOLD_MS = 350;      // 아주 가까울 때 후진 / 동작 유지 시간
+  // 회피 중인데 앞이 이 시간만큼 안 뚫리면 '끼임'으로 보고 거리와 무관하게 후진시킨다.
+  // (코너에 비스듬히 박히면 앞거리가 더 줄지 않아 후진 조건에 영영 안 걸리던 문제)
+  const ESC_STALL_MS = 2500;
+  const ESC_GAIN = 12;                      // 앞거리가 이만큼 늘면 '진전 있음'으로 보고 타이머 리셋
   const BUMP_SPEED = -350, BUMP_MS = 200;   // 터널 진입 범프
   const PHASE_TIMEOUT = 25000;
   // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 복도 가운데 유지
@@ -403,7 +407,7 @@
   // 조향 부호: +STEER=우회전, -STEER=좌회전.
   function hudAct(t) { const e = $('hudAct'); if (e) e.textContent = t; }
   // 정면 회피 방향 래치(+1=우 / -1=좌). 한 번 정하면 정면이 뚫릴 때까지 유지 → 좌우 뒤집힘(와리가리) 방지.
-  let escaping = false, escDir = 1;
+  let escaping = false, escDir = 1, escStartAt = 0, escBestFront = 0;
   function pickEscapeDir(ir1, ir3, ir4, ir5) {
     // 더 열린 쪽 선택. 측면값은 유효(<SIDE_VALID)할 때만 참고, 아니면 전면 대각(ir1/ir3)만으로 결정.
     const rM = Math.min(ir3, ir4 < SIDE_VALID ? ir4 : 99999);
@@ -420,10 +424,15 @@
     const DIAG_JAM = 70;                                 // 앞 대각(좌/우)이 이보다 가까우면 코너에 낀 것(벽따라가기는 오작동 방지)
     // ① 정면 벽/코너 — 한 번 정한 방향으로 '끝까지' 회피(중간에 좌우 안 뒤집음)
     if (ir2 < TOF2 || Math.min(ir1, ir3) < DIAG_JAM || (escaping && ir2 < clear)) {
-      if (!escaping) { escaping = true; escDir = pickEscapeDir(ir1, ir3, ir4, ir5); }
-      if (frontMin < near) {              // 코앞/코너에 낌 → K턴: 열린쪽 '반대로' 후진 → 열린쪽으로 전진
-        setDrive(WF_BACK, -escDir * FULL); hudAct(escDir > 0 ? '⤿ 후진(오른쪽 탈출)' : '⤾ 후진(왼쪽 탈출)'); await sleep(HOLD_MS);
+      if (!escaping) { escaping = true; escDir = pickEscapeDir(ir1, ir3, ir4, ir5); escStartAt = Date.now(); escBestFront = frontMin; }
+      // 앞이 뚫리는 중이면 '진전 있음' → 끼임 타이머를 다시 센다
+      if (frontMin > escBestFront + ESC_GAIN) { escBestFront = frontMin; escStartAt = Date.now(); }
+      // 옆벽에 붙어 비스듬히 낀 경우 앞거리가 더 안 줄어 후진 조건에 안 걸린다 → 시간으로 판정
+      const stalled = Date.now() - escStartAt > ESC_STALL_MS;
+      if (frontMin < near || stalled) {   // 코앞/코너에 낌 → K턴: 열린쪽 '반대로' 후진 → 열린쪽으로 전진
+        setDrive(WF_BACK, -escDir * FULL); hudAct(stalled ? '⤿ 끼임! 후진 탈출' : (escDir > 0 ? '⤿ 후진(오른쪽 탈출)' : '⤾ 후진(왼쪽 탈출)')); await sleep(HOLD_MS);
         setDrive(DRIVE,     escDir * FULL); hudAct(escDir > 0 ? '↱ 전진(오른쪽)'   : '↰ 전진(왼쪽)');       await sleep(HOLD_MS);
+        escStartAt = Date.now(); escBestFront = frontMin;   // 탈출 시도했으니 다시 관찰
       } else {                            // 접근 중 → 열린쪽으로 강하게 틀며 전진(후진 없이)
         setDrive(Math.round(DRIVE * 0.7), escDir * TURN); hudAct(escDir > 0 ? '↱ 정면벽 우회피' : '↰ 정면벽 좌회피'); await sleep(HOLD_MS);
       }
@@ -453,10 +462,12 @@
     }
     setDrive(DRIVE, st); hudAct(why); await sleep(st === 0 ? STREAM_MS : HOLD_MS);
   }
+  // 반환값: true=조건 달성, false=시간초과(코스를 못 찾음). 조용히 서면 고장으로 오해해서 알려준다.
   async function driveUntil(cond) {
     const t0 = Date.now();
     while (running && !cond() && Date.now() - t0 < PHASE_TIMEOUT) { await wallFollowStep(); }
     setDrive(0, 0);
+    return !running || cond();
   }
   async function backBump() { setDrive(BUMP_SPEED, 0); await sleep(BUMP_MS); setDrive(0, 0); state.steer(0); await sleep(200); }
   // 배송 문자 표시 — 방향 보정(js/dotmatrix.js)을 거쳐 찍는다.
@@ -474,12 +485,18 @@
     const goEl = $('goFlash'); if (goEl) { goEl.classList.remove('hidden'); await sleep(1000); goEl.classList.add('hidden'); }
     if (!running) return; toast('배송 시작! 🚚');
     // 터널1까지 벽추종 → 미션1(소리)
-    await driveUntil(() => sensor.cds < lightThresh);
+    if (!await driveUntil(() => sensor.cds < lightThresh)) {
+      toast('⏱ 터널을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
+      setDrive(0, 0); state.dotClear(); running = false; setRunUI(false); return;
+    }
     await backBump();
     if (running) { toast('🕳️ 터널! 소리 미션 🎵'); await soundMission(); }
     // 터널2까지(조도<조도값 & 2초 경과) 벽추종 → 미션2(문자)
     const t0 = Date.now();
-    await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000);
+    if (!await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000)) {
+      toast('⏱ 도착 지점을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
+      setDrive(0, 0); state.dotClear(); running = false; setRunUI(false); return;
+    }
     await backBump();
     if (running && zone) {
       showLetter(zone.code);
