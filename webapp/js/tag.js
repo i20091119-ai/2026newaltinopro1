@@ -185,9 +185,34 @@
     if (low && !battWarned) { battWarned = true; toast('🔋 배터리 낮음! 충전/교체하세요'); }
     if (!low) battWarned = false;
   }
+  // ── 후면 센서 고장 감지 ───────────────────────────────────────────
+  // 파일럿: "9번 자동차 잡힌횟수 증가 안 함(자동차 오류)".
+  // 후면 TOF 가 죽으면 값이 한 숫자에 붙박이가 된다. 그러면 아무리 뒤에 붙어도
+  // 잡힘이 0이고, 해설사는 앱 문제인지 차 문제인지 알 수 없다. 8초 동안 값이
+  // 단 한 번도 안 변하면 그 차의 센서 문제로 보고 알려준다.
+  let r6min = null, r6max = null, r6n = 0, r6since = 0, r6warned = false;
+  function watchRear(v) {
+    const now = Date.now();
+    if (!r6since) { r6since = now; r6min = r6max = v; r6n = 1; return; }
+    if (v < r6min) r6min = v;
+    if (v > r6max) r6max = v;
+    r6n++;
+    if (now - r6since < 8000) return;
+    const stuck = r6n >= 40 && r6max === r6min;
+    const badge = $('rearWarn');
+    if (badge) badge.classList.toggle('hidden', !stuck);
+    if (stuck && !r6warned) {
+      r6warned = true;
+      toast('⚠ 이 차의 후면 센서가 반응하지 않아요 — 잡힘이 안 세집니다 (차 교체)');
+    }
+    if (!stuck) r6warned = false;
+    r6since = now; r6min = r6max = v; r6n = 1;
+  }
+
   let lastUi = 0;
   function onSensor(s) {
     const rear = s.ir6;
+    watchRear(rear);
     // 화면 숫자는 250ms마다만 갱신(덜덜 떨림 방지). 잡힘 판정은 매 프레임.
     const now = Date.now();
     if (now - lastUi >= 250) {
@@ -301,10 +326,29 @@
     el.textContent = st.address ? stickerCode(st.name, st.address) : '—';
   }
 
+  // 재연결이 오래 이어지면 원인을 짚어 준다.
+  // 파일럿: "4번은 블루투스 연결이 안됩니다" — 화면엔 '재연결 중…'만 계속 떠서
+  // 로봇이 꺼진 건지, 남의 로봇과 짝이 된 건지, 앱 문제인지 알 수가 없었다.
+  let reconnSince = 0, reconnTold = false;
+  function noteReconnect(base) {
+    if (base === 'connected') { reconnSince = 0; reconnTold = false; return; }
+    if (base !== 'reconnecting' && base !== 'disconnected') return;
+    const now = Date.now();
+    if (!reconnSince) { reconnSince = now; return; }
+    if (reconnTold || now - reconnSince < 12000) return;
+    reconnTold = true;
+    let code = '';
+    try { const st = new T.AndroidBridgeTransport().state(); code = st.address ? stickerCode(st.name, st.address) : ''; } catch (e) {}
+    toast(code
+      ? `⚠ 이 태블릿은 ⟨${code}⟩ 와 짝이에요. 그 차가 꺼져 있거나 멀리 있으면 연결되지 않아요 — [🔗 연결] → [🔓 짝 해제]`
+      : '⚠ 짝지은 로봇이 없어요 — [🔗 연결] 에서 차를 고르세요');
+  }
+
   function wireNative(t) {   // 상태는 'base:detail' → base로 판별. 재연결은 네이티브가 자동 수행
     t.on('status', (s) => {
       updateRobotChip();
       const b = String(s).split(':')[0];
+      noteReconnect(b);
       if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
       else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
       else if (b === 'disconnected') setStatus('🔗 연결 끊김', 'off');

@@ -188,9 +188,40 @@
     const m = { 'error:no-bound': '로봇을 먼저 선택', 'error:give-up': '연결 실패 — 다시 선택', 'error:no-uart-char': 'UART 특성 없음', 'error:notify-failed': '알림 설정 실패', 'error:busy': '연결 중(스캔 불가)', 'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜세요', 'error:location-off': '태블릿 위치(Location)를 켜주세요 — 스캔에 필요' };
     return m[s] || s.replace('error:', '');
   }
+  // 어느 로봇과 짝인지 상단에 늘 보이게 — 12대 부스에서 '이 태블릿이 무슨 차지?'를
+  // 매번 연결창을 열어 확인하던 것을 없앤다. (꼬리잡기와 같은 표시)
+  function updateRobotChip() {
+    const el = $('robotNo'); if (!el) return;
+    if (!T.AndroidBridgeTransport.supported) { el.textContent = '데모'; return; }
+    try {
+      const st = new T.AndroidBridgeTransport().state();
+      el.textContent = st.address ? stickerCode(st.name, st.address) : '—';
+    } catch (e) { el.textContent = '—'; }
+  }
+
+  // 재연결이 오래 이어지면 원인을 짚어 준다.
+  // 파일럿: "4번은 블루투스 연결이 안됩니다" — 화면엔 '재연결 중…'만 계속 떠서
+  // 로봇이 꺼진 건지, 남의 로봇과 짝이 된 건지, 앱 문제인지 알 수가 없었다.
+  let reconnSince = 0, reconnTold = false;
+  function noteReconnect(base) {
+    if (base === 'connected') { reconnSince = 0; reconnTold = false; return; }
+    if (base !== 'reconnecting' && base !== 'disconnected') return;
+    const now = Date.now();
+    if (!reconnSince) { reconnSince = now; return; }
+    if (reconnTold || now - reconnSince < 12000) return;
+    reconnTold = true;
+    let code = '';
+    try { const st = new T.AndroidBridgeTransport().state(); code = st.address ? stickerCode(st.name, st.address) : ''; } catch (e) {}
+    toast(code
+      ? `⚠ 이 태블릿은 ⟨${code}⟩ 와 짝이에요. 그 차가 꺼져 있거나 멀리 있으면 연결되지 않아요 — [🔗 연결] → [🔓 짝 해제]`
+      : '⚠ 짝지은 로봇이 없어요 — [🔗 연결] 에서 차를 고르세요');
+  }
+
   function wireNative(t) {
     t.on('status', (s) => {
+      updateRobotChip();
       const b = String(s).split(':')[0];
+      noteReconnect(b);
       if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
       else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
       else if (b === 'disconnected') setStatus('🔗 연결 끊김', 'off');
@@ -312,6 +343,7 @@
 
     newRound();
     startStream();
+    updateRobotChip();
     if (T.AndroidBridgeTransport.supported) { setStatus('🔗 연결 안 됨', 'off'); nativeStart(); } // 연결됨→이어받기 / 바인딩됨→그 로봇 / 없음→스캔
     else setStatus('🔗 연결 안 됨 (데모 가능)', 'off');
   }

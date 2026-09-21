@@ -33,11 +33,18 @@
   let zone = null;                   // ④ 미션2 배송지 문자
 
   // 벽추종/주행 보정 — 실측 스케일: 가까울수록 작음(5cm≈60), 벽 없음≈1300.
-  // 그래서 '일찍 감지'하려면 임계를 크게(≈250) 잡아야 코앞이 아니라 여유거리에서 반응.
-  // 기본값 = 실기(경남수학문화관 n자 코스)에서 검증된 값. 설정에서 바꾸면 자동 저장됨.
-  let TOF1 = 130, TOF2 = 160, TOF3 = 130;   // 전면 좌/중앙/우 감지 거리(값 미만이면 벽). 정면 160=현장(n자 코스) 완주 검증값
-  let DRIVE = 300, STEER = 30;              // 순항 속도 / 벽 근접 시 살짝 틀기
-  let TURN = 127;                           // 정면 벽 회피 회전(강하게 꺾기)
+  // 그래서 '일찍 감지'하려면 임계를 크게 잡아야 코앞이 아니라 여유거리에서 반응.
+  //
+  // ⚠⚠ 이 기본값은 2026-09 주말 파일럿에서 강사들이 12대를 굴려 찾아낸 값이다.
+  //   예전 기본값(130/160/130, 회전 127)으로는 차가 코너에서 '뱅글뱅글 돌기만' 했고,
+  //   강사들이 태블릿마다 손으로 아래 값으로 맞춘 뒤에야 정상 주행했다.
+  //   특히 회전 127(최대)은 정면 회피 때 너무 세게 꺾여 제자리를 돌게 만든다 → 57.
+  //   ※ 보정값은 태블릿 localStorage 에 저장된다. 앱을 '지우고 새로 설치'하면 날아가
+  //     기본값으로 돌아간다 — 그래서 기본값 자체가 맞아야 한다.
+  const CAL_FIELD = { tof1: 650, tof2: 220, tof3: 210, turn: 57, drive: 300, steer: 30, sideKp: 12, sideTarget: 100, sideOn: true };
+  let TOF1 = CAL_FIELD.tof1, TOF2 = CAL_FIELD.tof2, TOF3 = CAL_FIELD.tof3;  // 전면 좌/중앙/우 감지 거리(값 미만이면 벽)
+  let DRIVE = CAL_FIELD.drive, STEER = CAL_FIELD.steer;   // 순항 속도 / 벽 근접 시 살짝 틀기
+  let TURN = CAL_FIELD.turn;                // 정면 벽 회피 회전
   const WF_BACK = -300, HOLD_MS = 350;      // 아주 가까울 때 후진 / 동작 유지 시간
   // 회피 중인데 앞이 이 시간만큼 안 뚫리면 '끼임'으로 보고 거리와 무관하게 후진시킨다.
   // (코너에 비스듬히 박히면 앞거리가 더 줄지 않아 후진 조건에 영영 안 걸리던 문제)
@@ -46,7 +53,7 @@
   const BUMP_SPEED = -350, BUMP_MS = 200;   // 터널 진입 범프
   const PHASE_TIMEOUT = 25000;
   // 측면 센서(ir4 우측면 / ir5 좌측면) 정밀 벽추종 — 복도 가운데 유지
-  let SIDE_ON = true, SIDE_KP = 0.12, SIDE_TARGET = 100;
+  let SIDE_ON = CAL_FIELD.sideOn, SIDE_KP = CAL_FIELD.sideKp / 100, SIDE_TARGET = CAL_FIELD.sideTarget;
   const SIDE_SMAX = 50, SIDE_VALID = 900;   // 조향 상한↑(더 세게 보정)·측면 벽 더 일찍 감지
 
   // ② 복구코드 문제 — 초1~고1 각 20문항(정수 정답).
@@ -304,8 +311,20 @@
     if ($('lightFb')) $('lightFb').textContent = '';
     if ($('toStep2')) $('toStep2').classList.add('hidden');
   }
-  function capBright() { if (sensor.cds < 999) { rawBright = sensor.cds; updateCalc(); toast('밝은 곳 조도 = ' + brightVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
-  function capDark() { if (sensor.cds < 999) { rawDark = sensor.cds; updateCalc(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
+  // 파일럿: "첫 번째 자리에서 측정값 불안정 — 조도센서 탐지가 자리에 따라 되고 안 되고".
+  // 자리마다 창문 빛이 달라 '밝은 곳'과 '터널 안'이 비슷하게 찍히면, 그 기준으로는
+  // 터널을 절대 못 잡는다. 측정 직후에 그걸 알려 줘야 한 판을 통째로 날리지 않는다.
+  const LIGHT_GAP_MIN = 120;      // 두 값 차이가 이보다 작으면 기준을 만들 수 없다
+  function checkLightGap() {
+    const gap = rawBright - rawDark;
+    const el = $('gapWarn'); if (!el) return;
+    const bad = gap < LIGHT_GAP_MIN;
+    el.classList.toggle('hidden', !bad);
+    if (bad) el.textContent = `⚠ 밝은 곳(${rawBright}) 과 터널 안(${rawDark}) 차이가 ${gap} 밖에 안 돼요.`
+      + ' 터널 안쪽 깊숙이 넣고 다시 재 보세요 — 이 자리는 빛이 셀 수 있어요.';
+  }
+  function capBright() { if (sensor.cds < 999) { rawBright = sensor.cds; updateCalc(); checkLightGap(); toast('밝은 곳 조도 = ' + brightVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
+  function capDark() { if (sensor.cds < 999) { rawDark = sensor.cds; updateCalc(); checkLightGap(); toast('터널 안 조도 = ' + darkVal); } else toast('연결 후 측정돼요(데모: 기본값)'); }
   function checkLight() {
     const v = parseInt($('lightInput').value, 10);
     const exp = expectedLight();
@@ -568,8 +587,36 @@
     } finally { state.soundSet(0); }
   }
 
+  // ── 실패했을 때: 학생이 값을 고쳐 다시 도전하는 칸 ───────────────────
+  // 파일럿 요청 — "단계 성공 후 차가 제대로 동작하지 않는 경우(안 움직이거나, 벽에 닿지도
+  // 않았는데 미리 회전해 원위치로 돌아옴) 거리·조도값을 학생들이 수정해 성공시킬 수 있으면"
+  function hideRetry() { const el = $('retryPanel'); if (el) el.classList.add('hidden'); }
+  function showRetry(kind) {
+    const el = $('retryPanel'); if (!el) return;
+    const why = $('retryWhy');
+    if (why) {
+      why.textContent = (kind === '터널')
+        ? '25초 동안 터널(어두운 곳)을 못 찾았어요. 차가 코스를 못 돌았거나, 터널 기준이 안 맞을 수 있어요.'
+        : '터널까지는 갔는데 도착 지점에서 멈추지 못했어요.';
+    }
+    syncRetryUI();
+    el.classList.remove('hidden');
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function syncRetryUI() {
+    if ($('rtFrontNow')) $('rtFrontNow').textContent = TOF2;
+    if ($('rtTurnNow')) $('rtTurnNow').textContent = TURN;
+    if ($('rtLightNow')) $('rtLightNow').textContent = lightThresh;
+    // 지금 값에 해당하는 버튼만 진하게
+    document.querySelectorAll('#rtFront [data-tof2]').forEach(b =>
+      b.classList.toggle('ghost', +b.dataset.tof2 !== TOF2));
+    document.querySelectorAll('#rtTurn [data-turn]').forEach(b =>
+      b.classList.toggle('ghost', +b.dataset.turn !== TURN));
+  }
+
   async function runDelivery() {   // 원본 '실행1' 시퀀스 재현
     if (running) return;
+    hideRetry();
     running = true; escaping = false; setRunUI(true); state.dotClear();
     const gen = ++runGen;
     // ⚠ 어떤 경로로 끝나도(정지·시간초과·예외) 모터와 부저는 반드시 끈다.
@@ -584,7 +631,7 @@
 
       // 터널1까지 벽추종 → 미션1(소리)
       if (!await driveUntil(() => sensor.cds < lightThresh, gen)) {
-        if (alive(gen)) toast('⏱ 터널을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
+        if (alive(gen)) { toast('⏱ 터널을 못 찾아 멈췄어요'); showRetry('터널'); }
         return;
       }
       await backBump(gen);
@@ -603,7 +650,7 @@
       //   (실제로 그렇게 고쳤다가 되돌린 자리다 — 터널을 두 번 지난다고 잘못 알았다)
       const t0 = Date.now();
       if (!await driveUntil(() => sensor.cds < lightThresh && Date.now() - t0 > 2000, gen)) {
-        if (alive(gen)) toast('⏱ 도착 지점을 못 찾아 멈췄어요 — 차를 코스에 다시 놓고 다시 출발!');
+        if (alive(gen)) { toast('⏱ 도착 지점을 못 찾아 멈췄어요'); showRetry('도착'); }
         return;
       }
       await backBump(gen);
@@ -636,7 +683,7 @@
       if (gen === runGen) { setDrive(0, 0); state.soundSet(0); running = false; setRunUI(false); }
     }
   }
-  function stopRun() { running = false; runGen++; setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); const g = $('goFlash'); if (g) g.classList.add('hidden'); setRunUI(false); }
+  function stopRun() { running = false; runGen++; hideRetry(); setDrive(0, 0); state.dotClear(); state.soundSet(0); $('arrive').classList.add('hidden'); const g = $('goFlash'); if (g) g.classList.add('hidden'); setRunUI(false); }
   function setRunUI(on) { $('goRun').classList.toggle('hidden', on); const l = $('loopRun'); if (l) l.classList.toggle('hidden', on); $('stopRun').classList.toggle('hidden', !on); }
 
   // ---- 연결 ----
@@ -644,9 +691,40 @@
     const m = { 'error:no-bound': '로봇을 먼저 선택', 'error:bad-address': '잘못된 주소', 'error:give-up': '연결 실패 — 다시 선택', 'error:no-uart-char': 'UART 특성 없음', 'error:notify-failed': '알림 설정 실패', 'error:busy': '연결 중(스캔 불가)', 'error:no-bluetooth': '블루투스 없음', 'error:bluetooth-off': '블루투스를 켜세요', 'error:location-off': '태블릿 위치(Location)를 켜주세요 — 스캔에 필요', 'error:scan-failed': '스캔 실패' };
     return m[s] || s.replace('error:', '');
   }
+  // 어느 로봇과 짝인지 상단에 늘 보이게 — 12대 부스에서 '이 태블릿이 무슨 차지?'를
+  // 매번 연결창을 열어 확인하던 것을 없앤다. (꼬리잡기와 같은 표시)
+  function updateRobotChip() {
+    const el = $('robotNo'); if (!el) return;
+    if (!T.AndroidBridgeTransport.supported) { el.textContent = '데모'; return; }
+    try {
+      const st = new T.AndroidBridgeTransport().state();
+      el.textContent = st.address ? stickerCode(st.name, st.address) : '—';
+    } catch (e) { el.textContent = '—'; }
+  }
+
+  // 재연결이 오래 이어지면 원인을 짚어 준다.
+  // 파일럿: "4번은 블루투스 연결이 안됩니다" — 화면엔 '재연결 중…'만 계속 떠서
+  // 로봇이 꺼진 건지, 남의 로봇과 짝이 된 건지, 앱 문제인지 알 수가 없었다.
+  let reconnSince = 0, reconnTold = false;
+  function noteReconnect(base) {
+    if (base === 'connected') { reconnSince = 0; reconnTold = false; return; }
+    if (base !== 'reconnecting' && base !== 'disconnected') return;
+    const now = Date.now();
+    if (!reconnSince) { reconnSince = now; return; }
+    if (reconnTold || now - reconnSince < 12000) return;
+    reconnTold = true;
+    let code = '';
+    try { const st = new T.AndroidBridgeTransport().state(); code = st.address ? stickerCode(st.name, st.address) : ''; } catch (e) {}
+    toast(code
+      ? `⚠ 이 태블릿은 ⟨${code}⟩ 와 짝이에요. 그 차가 꺼져 있거나 멀리 있으면 연결되지 않아요 — [🔗 연결] → [🔓 짝 해제]`
+      : '⚠ 짝지은 로봇이 없어요 — [🔗 연결] 에서 차를 고르세요');
+  }
+
   function wireNative(t) {   // 상태/데이터 핸들러 (상태는 'base:detail' 형식 → base로 판별)
     t.on('status', s => {
+      updateRobotChip();
       const b = String(s).split(':')[0];
+      noteReconnect(b);
       if (b === 'connected') setStatus('🔗 연결됨 ✓', 'ok');
       else if (b === 'reconnecting') setStatus('🔗 재연결 중…', 'pending');
       else if (b === 'disconnected') setStatus('🔗 연결 끊김', 'off');
@@ -859,7 +937,37 @@
     document.querySelectorAll('.divbtn').forEach(b => b.addEventListener('click', () => {
       setLightDiv(+b.dataset.div); saveCal(); toast(`나누는 수 ÷${lightDiv}`);
     }));
+    // 학생용 다시 도전 칸 — 누르면 강사용 슬라이더도 같이 움직이고 저장된다(둘이 어긋나지 않게)
+    function setCal(id, value) {
+      const el = $(id); if (!el) return;
+      el.value = value; el.dispatchEvent(new Event('input')); saveCal();
+    }
+    document.querySelectorAll('#rtFront [data-tof2]').forEach(b => b.addEventListener('click', () => {
+      setCal('calTof2', b.dataset.tof2); syncRetryUI(); toast(`정면 감지거리 ${TOF2}`);
+    }));
+    document.querySelectorAll('#rtTurn [data-turn]').forEach(b => b.addEventListener('click', () => {
+      setCal('calTurn', b.dataset.turn); syncRetryUI(); toast(`회전 세기 ${TURN}`);
+    }));
+    if ($('retryGo')) $('retryGo').onclick = () => { hideRetry(); runDelivery(); };
+
     restoreCal();
+    // [현장 기본값] — 태블릿을 새로 깔았거나 누가 슬라이더를 건드려 주행이 이상할 때
+    // 한 번에 파일럿 검증값으로 되돌린다. (강사들이 12대를 손으로 맞추던 일을 없앤다)
+    const CAL_MAP = { calTof1: 'tof1', calTof2: 'tof2', calTof3: 'tof3', calTurn: 'turn',
+                      calDrive: 'drive', calSteer: 'steer', calSideKp: 'sideKp', calSideTarget: 'sideTarget' };
+    if ($('calReset')) $('calReset').onclick = async () => {
+      if (!await AltinoUI.confirm({
+        title: '주행 설정을 현장 기본값으로 되돌릴까요?',
+        lines: ['정면 220 · 좌 650 · 우 210 · 회전 57',
+                '(2026-09 파일럿에서 12대로 검증한 값)'],
+        okText: '네, 되돌리기', danger: false,
+      })) return;
+      for (const [id, key] of Object.entries(CAL_MAP)) {
+        const el = $(id); if (el) { el.value = CAL_FIELD[key]; el.dispatchEvent(new Event('input')); }
+      }
+      const sc = $('sideOn'); if (sc) { sc.checked = CAL_FIELD.sideOn; SIDE_ON = CAL_FIELD.sideOn; }
+      saveCal(); toast('✅ 현장 기본값으로 되돌렸어요');
+    };
     // 센서 점검
     if ($('sensorTest')) $('sensorTest').onclick = openSensorTest;
     // 🔧 관리자 뒷문: 스텝바 끝 빈칸을 1.5초 안에 5번 빠르게 터치 → 바로 ⑥ 주행 테스트로
@@ -878,6 +986,7 @@
     document.addEventListener('visibilitychange', () => { if (document.hidden) stopRun(); });
 
     startStream(); setRunUI(false); go(1);
+    updateRobotChip();
     if (T.AndroidBridgeTransport.supported) nativeStart(); else setStatus('🔗 연결 안 됨 (데모 가능)', 'off');
   }
   document.addEventListener('DOMContentLoaded', init);

@@ -98,6 +98,7 @@
       <span class="dot-step">1 빛</span><span class="dot-step">2 암호</span><span class="dot-step">3 소리</span><span class="dot-step">4 배송지</span><span class="dot-step">5 조립</span><span class="dot-step">6 실행</span>
     </div>
     <div class="row">
+      <span class="chip" style="border-color:#bcd9ff;background:#f6fbff">🚗 내 로봇 <b id="robotNo" style="color:var(--blue);font-size:1.05rem">–</b></span>
       <span class="chip">🔆<b id="cdsNow">–</b> · TOF <b id="tofNow">–</b> · 옆 <b id="sideNow">–</b></span>
       <span id="battChip" class="status" style="display:none">🔋 –</span>
       <button id="connBtn" class="btn ghost" style="padding:6px 10px;font-size:.85rem">🔗 연결</button>
@@ -129,6 +130,8 @@
       <!-- ÷4 로 기준이 너무 낮아지면(측정한 터널보다 어둡게 잡히면) 터널을 영영 못 찾는다.
            그 상태를 눈에 보이게 알려 준다. -->
       <div id="divWarn" class="divpick hidden" style="color:#c0392b"></div>
+      <!-- 자리마다 빛이 달라 두 측정값이 붙어버리면 기준을 만들 수 없다 → 그 자리에서 알려 준다 -->
+      <div id="gapWarn" class="divpick hidden" style="color:#c0392b;display:block;text-align:center"></div>
       <div class="row" style="justify-content:center"><input id="lightInput" type="number" placeholder="?"><button id="lightOk" class="btn">확인</button></div>
       <div class="fb" id="lightFb" style="text-align:center"></div>
       <div class="foot"><span></span><button id="toStep2" class="btn hidden">다음 →</button></div>
@@ -221,18 +224,55 @@
         <span style="color:#9fd;">옆(좌·우) <b id="hudSide">–·–</b></span>
         <span style="color:#ffd;">🔆 <b id="hudCds">–</b></span>
       </div>
+      <!-- 주행이 실패했을 때만 뜨는 '학생이 고쳐서 다시 도전' 칸.
+           강사용 슬라이더는 학생에게 너무 많고 위험해서, 실제로 원인이 되는 두 가지만
+           큼직한 버튼으로 낸다. 파일럿 요청: "거리·조도값을 학생들이 수정하여 성공시킬 수 있으면" -->
+      <div id="retryPanel" class="hidden" style="margin-top:12px;border:2.5px solid #ffd9a8;background:#fffaf0;border-radius:16px;padding:12px 16px">
+        <div style="font-weight:700;font-size:1.1rem;color:#a86400">🔧 안 됐네요! 값을 고쳐서 다시 도전해 볼까요?</div>
+        <div id="retryWhy" class="lead" style="margin:4px 0 10px"></div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-weight:700">① 벽을 <u>얼마나 일찍</u> 피할까?  <span class="lead" style="display:inline">지금 <b id="rtFrontNow">220</b></span></div>
+          <div class="lead" style="margin:2px 0 6px">벽에 <b>부딪히면</b> 더 크게, 벽이 없는데 <b>혼자 돌면</b> 더 작게.</div>
+          <div class="row" id="rtFront">
+            <button class="btn ghost" data-tof2="160">가까이서 (160)</button>
+            <button class="btn" data-tof2="220">보통 (220)</button>
+            <button class="btn ghost" data-tof2="300">멀리서 (300)</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-weight:700">② 피할 때 <u>얼마나 세게</u> 꺾을까?  <span class="lead" style="display:inline">지금 <b id="rtTurnNow">57</b></span></div>
+          <div class="lead" style="margin:2px 0 6px">코너를 <b>못 돌면</b> 세게, <b>제자리를 뱅뱅 돌면</b> 살살.</div>
+          <div class="row" id="rtTurn">
+            <button class="btn ghost" data-turn="40">살살 (40)</button>
+            <button class="btn" data-turn="57">보통 (57)</button>
+            <button class="btn ghost" data-turn="90">세게 (90)</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-weight:700">③ 터널 기준(🔆조도)  <span class="lead" style="display:inline">지금 <b id="rtLightNow">355</b></span></div>
+          <div class="lead" style="margin:2px 0 6px">터널인데 <b>안 멈추면</b> ①로 돌아가 <b>다시 측정</b>해요. 자리마다 빛이 달라요.</div>
+          <button class="btn ghost" data-back="1">① 빛으로 돌아가 다시 재기 →</button>
+        </div>
+
+        <button id="retryGo" class="btn mint big" style="width:100%">🚚 고친 값으로 다시 출발!</button>
+      </div>
+
       <button id="sensorTest" class="btn ghost" style="margin-top:8px">🔬 센서 점검 (측면센서 작동 확인)</button>
       <details class="cal">
         <summary>🔧 벽추종 보정 (강사용) · 값 클수록 '멀리서 미리' 반응 (벽 없음≈1300)</summary>
-        <label>TOF-1(좌) 감지거리 <b id="calTof1V">130</b></label><input id="calTof1" type="range" min="60" max="700" step="10" value="130">
-        <label>TOF-2(정면) 감지거리 <b id="calTof2V">160</b></label><input id="calTof2" type="range" min="80" max="900" step="10" value="160">
-        <label>TOF-3(우) 감지거리 <b id="calTof3V">130</b></label><input id="calTof3" type="range" min="60" max="700" step="10" value="130">
-        <label>정면 회피 회전세기 <b id="calTurnV">127</b></label><input id="calTurn" type="range" min="30" max="127" step="1" value="127">
+        <label>TOF-1(좌) 감지거리 <b id="calTof1V">650</b></label><input id="calTof1" type="range" min="60" max="700" step="10" value="650">
+        <label>TOF-2(정면) 감지거리 <b id="calTof2V">220</b></label><input id="calTof2" type="range" min="80" max="900" step="10" value="220">
+        <label>TOF-3(우) 감지거리 <b id="calTof3V">210</b></label><input id="calTof3" type="range" min="60" max="700" step="10" value="210">
+        <label>정면 회피 회전세기 <b id="calTurnV">57</b></label><input id="calTurn" type="range" min="30" max="127" step="1" value="57">
         <label>직진 속도 <b id="calDriveV">300</b></label><input id="calDrive" type="range" min="150" max="700" step="10" value="300">
         <label>측면 살짝틀기 세기 <b id="calSteerV">30</b></label><input id="calSteer" type="range" min="5" max="90" step="1" value="30">
         <label style="margin-top:10px"><input id="sideOn" type="checkbox" checked style="accent-color:var(--mint);width:18px;height:18px;vertical-align:-3px"> <b>측면 센서(ir5좌·ir4우) 정밀주행</b> — 복도 가운데 자동 유지</label>
         <label>측면 게인 ×0.01 <b id="calSideKpV">12</b></label><input id="calSideKp" type="range" min="4" max="60" step="2" value="12">
         <label>측면 목표거리 <b id="calSideTargetV">100</b></label><input id="calSideTarget" type="range" min="60" max="600" step="10" value="100">
+        <button id="calReset" class="btn ghost" style="margin-top:12px;width:100%">↩️ 현장 기본값으로 되돌리기 <span style="color:var(--mut);font-size:.85rem">(정면 220 · 좌 650 · 우 210 · 회전 57)</span></button>
       </details>
       <div class="foot"><button class="btn ghost" data-back="5">← 이전</button><span></span></div>
     </section>
