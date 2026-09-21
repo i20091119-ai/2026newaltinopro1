@@ -30,6 +30,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # ⚠ 2026-09-21 빌드 #71 실패: 러너 이미지가 cmdline-tools 16 으로 올라가면서
+          #   옛 'tools' 패키지가 저장소에서 사라졌다. 이 액션의 기본값(tools platform-tools)이
+          #   그걸 설치하려다 sdkmanager 가 exit 1 로 죽는다.
+          #     Warning: Failed to find package 'tools'
+          #   우리 빌드에 'tools' 는 필요 없으므로 platform-tools 만 설치한다.
+          packages: 'platform-tools'
 
       - name: Grant execute permission for gradlew
         working-directory: android
