@@ -20,7 +20,8 @@ const SHARED_GLOBS = [
   'webapp/js/protocol.js', 'webapp/js/ui.js', 'webapp/js/dotmatrix.js', 'webapp/js/transport.js',
   'webapp/js/kit.js', 'webapp/js/problems.js', 'webapp/js/apps.js', 'webapp/school.html',
   'webapp/t00.html', 'webapp/js/t00.js',
-  'tests/stub.js', 'tests/smoke.mjs', 'tests/pages.mjs', 'tests/t00.mjs', 'tools/check_contribution.mjs',
+  'tests/stub.js', 'tests/smoke.mjs', 'tests/pages.mjs', 'tests/t00.mjs', 'tests/mutation.mjs',
+  'tools/check_contribution.mjs', 'tools/serve.mjs', 'tools/make_pdf.mjs', 'tools/make_worksheet_pptx.py', 'package.json',
   // 체험관 현장 앱(검증 끝난 코드) — 주제 앱 작업에서 건드리지 않는다
   'webapp/home.html', 'webapp/mode1.html', 'webapp/tag.html', 'webapp/park.html', 'webapp/index.html',
   'webapp/js/code.js', 'webapp/js/tag.js', 'webapp/js/park.js', 'webapp/js/update.js',
@@ -28,7 +29,13 @@ const SHARED_GLOBS = [
 const SHARED_DIRS = ['android', '.github', 'webapp/fonts', 'webapp/sounds'];
 const SOUND_OK = new Set([37, 39, 41, 42, 44, 46, 48, 49]);   // 실측된 8음
 
-const sha = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+// 글 파일은 줄바꿈을 LF 로 맞춰서 지문을 낸다 — 윈도우 git(autocrlf)이 CRLF 로 바꿔 받아도 '바뀜'으로 잡지 않게
+const TEXT_EXT = /\.(js|mjs|html|css|json|md|kt|kts|gradle|xml|yml|yaml|pro|properties|txt|gitignore)$/i;
+const sha = (p) => {
+  let b = fs.readFileSync(p);
+  if (TEXT_EXT.test(p) || path.basename(p) === 'gradlew') b = Buffer.from(b.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+  return crypto.createHash('sha256').update(b).digest('hex');
+};
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -63,6 +70,11 @@ const html = rd(`webapp/${app}.html`), js = rd(`webapp/js/${app}.js`), plan = rd
 if (!html) E(`webapp/${app}.html 이 없습니다 (t00.html 을 복사해 시작하세요)`);
 if (!js) E(`webapp/js/${app}.js 가 없습니다`);
 if (!plan) E(`docs/topics/${app}.md (앱 기획서)가 없습니다 — docs/dev-guide/11 양식`);
+else {
+  const blanks = (plan.match(/✎/g) || []).length;
+  if (blanks) W(`기획서 docs/topics/${app}.md 에 아직 안 채운 칸(✎)이 ${blanks}개 있습니다`);
+  if (!/상태:\s*\**확정/.test(plan)) W('기획서 상태가 아직 \'확정\'이 아닙니다 (다른 저자 검토 후 확정)');
+}
 if (!fs.existsSync(path.join(ROOT, `tests/${app}.mjs`))) W(`tests/${app}.mjs 가 없습니다 — 조종 패드가 있으면 tests/t00.mjs 를 복사해 꼭 만드세요`);
 
 // 2) 공용 파일 지문
@@ -108,7 +120,7 @@ if (html) {
 // 4) 바뀐 파일 목록(git 이 있으면) — 허용 범위 밖이면 경고
 const allowed = (f) => f === `webapp/${app}.html` || f === `webapp/js/${app}.js` || f.startsWith(`webapp/assets/${app}/`) ||
   f.startsWith(`docs/topics/${app}`) || f === `tests/${app}.mjs`;
-const g = spawnSync('git', ['status', '--porcelain', '-uall'], { cwd: ROOT, encoding: 'utf8' });
+const g = spawnSync('git', ['-c', 'core.quotepath=false', 'status', '--porcelain', '-uall'], { cwd: ROOT, encoding: 'utf8' });
 if (g.status === 0) {
   const changed = g.stdout.split('\n').filter(Boolean).map(l => l.slice(3).replace(/^"|"$/g, ''));
   const outside = changed.filter(f => !allowed(f));
@@ -123,7 +135,7 @@ if (!errors.length) {
     if (!fs.existsSync(path.join(ROOT, t[0]))) continue;
     const r = spawnSync(process.execPath, t, { cwd: ROOT, encoding: 'utf8', env: process.env });
     const last = (r.stdout || '').trim().split('\n').pop() || '';
-    if (/playwright 가 없습니다/.test(r.stderr || '')) { W('playwright 가 없어 시험을 못 돌렸습니다: npm i -D playwright && npx playwright install chromium'); break; }
+    if (/playwright 가 없습니다/.test(r.stderr || '')) { W('playwright 가 없어 시험을 못 돌렸습니다: npm install && npx playwright install chromium'); break; }
     tested = true;
     if (r.status !== 0) E(`${t[0]} 실패 — ${last}\n` + (r.stdout || '').split('\n').filter(l => l.startsWith('✗')).map(l => '      ' + l).join('\n'));
     else I(`${t[0]} 통과 — ${last}`);

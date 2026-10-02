@@ -1,6 +1,6 @@
 // 공통 안전 시험 — kit 을 쓰는 모든 주제 앱이 통과해야 한다.
 //   node tests/smoke.mjs t07
-// 준비(처음 한 번): npm i -D playwright && npx playwright install chromium
+// 준비(처음 한 번): npm install && npx playwright install chromium
 // 환경변수: CHROMIUM_PATH(브라우저 위치를 직접 줄 때)
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,7 +17,7 @@ let chromium;
 try { ({ chromium } = await import('playwright')); }
 catch (e) {
   try { ({ chromium } = await import('/opt/node22/lib/node_modules/playwright/index.mjs')); }
-  catch (e2) { console.error('playwright 가 없습니다: npm i -D playwright && npx playwright install chromium'); process.exit(2); }
+  catch (e2) { console.error('playwright 가 없습니다: npm install && npx playwright install chromium'); process.exit(2); }
 }
 
 // 정적 서버(파이썬 없이)
@@ -128,6 +128,30 @@ const clearTx = (p) => p.evaluate(() => { window.__tx.length = 0; });
   // 새 루프는 −300(처음엔 킥 −400). 옛 루프가 살아 있으면 +300 이 섞인다.
   ok('S5 옛 루프(+300)가 새 루프를 덮지 않음', r.after.length > 0 && r.after.every(v => v <= 0), JSON.stringify(r.after));
   ok('S5 새 루프는 원래 속도(−300)로 안정', r.after.slice(-2).every(v => v === -300), JSON.stringify(r.after.slice(-3)));
+  await ctx.close();
+}
+
+// 6) 신호 사전 — 같은 뜻은 같은 소리, 정지하면 신호도 끊긴다(S7)
+{
+  const { ctx, p } = await open();
+  const seq = await p.evaluate(async () => {
+    const k = window.__altinoKit, seen = [];
+    const t = setInterval(() => { const v = k.state.sound; if (seen[seen.length - 1] !== v) seen.push(v); }, 10);
+    k.signal('success');
+    await new Promise(r => setTimeout(r, 700));
+    clearInterval(t); return seen;
+  });
+  const notes = seq.filter(v => v !== 0);
+  ok('신호 success = 솔(44) → 높은도(49), 끝나면 소리 꺼짐', JSON.stringify(notes) === '[44,49]' && seq[seq.length - 1] === 0, JSON.stringify(seq));
+  const cut = await p.evaluate(async () => {
+    const k = window.__altinoKit; k.signal('start');
+    await new Promise(r => setTimeout(r, 120)); k.stop();
+    const after = []; for (let i = 0; i < 30; i++) { after.push(k.state.sound); await new Promise(r => setTimeout(r, 15)); }
+    return after;
+  });
+  ok('S7 신호 재생 중 정지하면 남은 음도 안 남', cut.every(v => v === 0), JSON.stringify([...new Set(cut)]));
+  const ic = await p.evaluate(() => { const k = window.__altinoKit; k.dot.icon('ok'); return Array.from(k.state.dot).some(b => b !== 0); });
+  ok('도트 아이콘이 그려짐', ic);
   await ctx.close();
 }
 

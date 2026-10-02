@@ -1,5 +1,8 @@
 # 알티노 네오 태블릿 웹 컨트롤
 
+> **알티노 로봇 학교(학교자율시간) 공동개발자는 여기부터** → [`docs/dev-guide/00_읽는순서.md`](docs/dev-guide/00_읽는순서.md)
+> 준비: `npm install && npx playwright install chromium` → `node tools/serve.mjs` → http://localhost:8099/t00.html
+
 `altinoneoCodingplay.apk`(㈜새온, `saeon.co.kr.altinoneocodingplay` v1.3)를
 리버스 엔지니어링해, 태블릿 **웹앱**에서 알티노 네오를 조종할 수 있게 만든
 프로젝트입니다.

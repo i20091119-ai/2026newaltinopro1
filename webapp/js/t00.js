@@ -51,6 +51,13 @@
     $('notes').appendChild(b);
   });
 
+  // ── 신호 사전: 성공·실패 같은 '뜻'은 직접 소리를 고르지 말고 kit.signal 로 ──
+  [['success', '✓ 성공'], ['fail', '✗ 실패'], ['notice', '🔔 알림'], ['start', '▶ 시작']].forEach(([name, label]) => {
+    const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = label;
+    b.style.padding = '8px 12px'; b.onclick = () => kit.signal(name);
+    $('signals').appendChild(b);
+  });
+
   // ── LED: 15 = 전방등(실측). 나머지 비트↔램프는 아직 실측 전 ──
   $('ledOn').onclick = () => kit.led(15);
   $('ledOff').onclick = () => kit.led(0);

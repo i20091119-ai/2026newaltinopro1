@@ -1,10 +1,12 @@
 // t00 견본 앱 전용 시험 — 조종 패드(S3)와 공용 데이터.
-// 새 앱에 패드가 있으면 이 파일을 tests/tNN.mjs 로 복사해 버튼 id 만 바꿔 쓴다.
+// 새 앱에 패드가 있으면 이 파일을 tests/tNN.mjs 로 복사해 아래 APP 과 버튼 id 를 바꿔 쓴다.
+// (견본 기능 — 음표·카운터 등 — 을 지웠으면 그 시험도 지운다)
 //   node tests/t00.mjs
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+const APP = 't00';                       // ← 내 앱 번호로
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = path.join(ROOT, 'webapp');
 const STUB = fs.readFileSync(path.join(ROOT, 'tests', 'stub.js'), 'utf8');
@@ -25,7 +27,7 @@ const br = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: p
 const ctx = await br.newContext({ viewport: { width: 1280, height: 800 }, hasTouch: true });
 await ctx.addInitScript(STUB);
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
-await p.goto(BASE + '/t00.html'); await p.waitForTimeout(600);
+await p.goto(BASE + `/${APP}.html`); await p.waitForTimeout(600);
 await p.evaluate(() => window.__feed({}));
 const tail = (n) => p.evaluate((k) => window.__tx.slice(-k), n);
 const press = async (sel) => { const b = await p.locator(sel).boundingBox(); await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await p.mouse.down(); return b; };
@@ -58,18 +60,18 @@ ok('모둠 이름이 공용 키에 저장', await p.evaluate(() => localStorage.
 ok('모둠 이름이 상단 칩에 표시', (await p.textContent('#kitTeam')).includes('번개호'));
 await p.click('#recAdd'); await p.waitForTimeout(150);
 const rec = await p.evaluate(() => JSON.parse(localStorage.getItem('altino.record') || '[]'));
-ok('성장기록부에 앱 번호와 함께 기록', rec.length === 1 && rec[0].app === 't00' && rec[0].title.length > 0, JSON.stringify(rec));
+ok('성장기록부에 앱 번호와 함께 기록', rec.length === 1 && rec[0].app === APP && rec[0].title.length > 0, JSON.stringify(rec));
 await p.click('#cntUp'); await p.click('#cntUp'); await p.waitForTimeout(100);
-ok('앱 저장값은 altino.t00.* 에', await p.evaluate(() => localStorage.getItem('altino.t00.cnt') === '2'));
+ok(`앱 저장값은 altino.${APP}.* 에`, await p.evaluate((a) => localStorage.getItem(`altino.${a}.cnt`) === '2', APP));
 await p.click('#cntReset'); await p.waitForTimeout(200);
 ok('초기화는 확인창을 거친다(kit.confirm)', await p.isVisible('#altinoConfirm'));
 await p.click('#acYes'); await p.waitForTimeout(150);
 ok('확인하면 초기화', (await p.textContent('#cnt')).trim() === '0');
 
 // 망가진 저장값 방어 — store.num 이 범위로 자른다
-await p.evaluate(() => localStorage.setItem('altino.t00.speed', '"-999"'));
+await p.evaluate((a) => localStorage.setItem(`altino.${a}.speed`, '"-999"'), APP);
 await p.reload(); await p.waitForTimeout(500);
 ok('망가진 저장값은 범위로 잘림', (await p.textContent('#spdVal')).trim() === '0', await p.textContent('#spdVal'));
 ok('무에러', errs.length === 0, errs.join(' | '));
-console.log('──────────────'); console.log(`t00 앱 시험: ${pass} 통과 / ${fail} 실패`);
+console.log('──────────────'); console.log(`${APP} 앱 시험: ${pass} 통과 / ${fail} 실패`);
 await br.close(); server.close(); process.exit(fail ? 1 : 0);

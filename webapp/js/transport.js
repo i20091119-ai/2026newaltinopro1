@@ -82,10 +82,13 @@ class MockTransport extends BaseTransport {
   async connect() { this.connected = true; this._emit('status', 'connected');
     this._t = setInterval(() => {
       // 가짜 센서 프레임 생성 (배터리/IR 랜덤)
+      // 개발 중 값을 바꿔 보려면 콘솔에서: ALTINO_MOCK = { ir2: 150, cds: 80 }  (지우면 기본값)
+      const o = window.ALTINO_MOCK || {};
+      const v = (k, d) => (o[k] != null ? (o[k] | 0) : d);
       const f = new Uint8Array(54); f[0]=0x02; f[1]=0x30; f[53]=0x03;
-      const put=(i,v)=>{f[i]=(v>>8)&0xFF;f[i+1]=v&0xFF;};
-      put(5,300+((Math.random()*40)|0)); put(7,280); put(9,260); put(11,250); put(13,240); put(15,230);
-      put(47,500+((Math.random()*30)|0)); put(49,760+((Math.random()*20)|0));
+      const put=(i,x)=>{f[i]=(x>>8)&0xFF;f[i+1]=x&0xFF;};
+      put(5,v('ir1',300+((Math.random()*40)|0))); put(7,v('ir2',280)); put(9,v('ir3',260)); put(11,v('ir4',250)); put(13,v('ir5',240)); put(15,v('ir6',230));
+      put(47,v('cds',500+((Math.random()*30)|0))); put(49,v('battery',760+((Math.random()*20)|0)));
       this._emit('data', f);
     }, 100);
   }

@@ -4,3 +4,4 @@ node_modules/
 tools/ble-test/lib/
 tools/ble-test/out*/
 tools/ble-test/AltinoBle.kt
+package-lock.json

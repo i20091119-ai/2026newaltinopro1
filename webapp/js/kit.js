@@ -34,6 +34,26 @@
 
   let created = false;                     // 한 화면에 kit 은 하나만
 
+  // ── 신호 사전 — 15개 앱이 같은 뜻에 같은 소리·같은 도트를 쓴다 ─────────
+  // 아이들은 32차시 내내 같은 로봇을 본다. 3번 앱에서 '성공'이던 소리가 9번 앱에서
+  // '실패'면 헷갈린다. 그래서 소리 뜻을 여기서 한 번만 정한다(docs/dev-guide/05).
+  // 소리 코드는 실측된 8음만: 37도 39레 41미 42파 44솔 46라 48시 49높은도
+  const SIGNALS = {
+    success: { notes: [[44, 150], [49, 300]], icon: 'ok' },   // 올라가는 두 음
+    fail:    { notes: [[41, 150], [37, 300]], icon: 'no' },   // 내려가는 두 음
+    notice:  { notes: [[46, 120]] },                          // 짧은 한 음
+    start:   { notes: [[37, 100], [41, 100], [44, 200]] },    // 도·미·솔
+    caught:  { notes: [[49, 400]] },                          // 꼬리잡기 '잡혔다'와 같은 소리
+  };
+  // 도트 아이콘 — 바이트=행(위→아래), 비트7=맨 왼쪽 (AltinoDot.drawBytes 형식)
+  const ICONS = {
+    ok:    [0x00, 0x03, 0x06, 0x0C, 0xD8, 0x70, 0x20, 0x00],   // ✓
+    no:    [0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81],   // ✗
+    ask:   [0x3C, 0x42, 0x02, 0x0C, 0x10, 0x10, 0x00, 0x10],   // ?
+    heart: [0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00],   // ♥
+    smile: [0x3C, 0x42, 0xA5, 0x81, 0xA5, 0x99, 0x42, 0x3C],   // ☺
+  };
+
   function stickerCode(name, addr) {
     const up = String(name || '').toUpperCase().trim();
     const PRE = ['ALTINO-NEO-', 'ALTINO-NEO', 'ALTINO-LITE-', 'ALTINO-LITE', 'ALTINO-N', 'ALTINO-L',
@@ -76,6 +96,7 @@
     const holds = new Set();
     let runGen = 0, running = false, staleTold = false;
     let soundTimer = null;
+    let sigTimers = [];
     let reconnSince = 0, reconnTold = false;
     const $ = (id) => document.getElementById(id);
 
@@ -206,6 +227,7 @@
       runGen++; running = false;
       motion.m = 0; motion.steer = 0; lastM = 0;
       clearTimeout(soundTimer);
+      sigTimers.forEach(clearTimeout); sigTimers = [];     // 재생 중인 신호도 끊는다
       state.go(0, 0); state.steer(0); state.soundSet(0);
       send();
     }
@@ -260,11 +282,25 @@
       soundTimer = setTimeout(() => state.soundSet(0), ms || 400);   // S7 — 끄는 걸 잊지 않게
     }
     function led(mask) { state.ledSet(mask | 0); }
+    // 통일 신호 — kit.signal('success') 처럼. 이름이 없으면 아무것도 안 한다.
+    function signal(name) {
+      const sg = SIGNALS[name]; if (!sg) { console.warn('알 수 없는 신호:', name); return; }
+      sigTimers.forEach(clearTimeout); sigTimers = []; clearTimeout(soundTimer);
+      if (sg.icon) dot.icon(sg.icon);
+      let t = 0;
+      sg.notes.forEach(([code, ms]) => {
+        sigTimers.push(setTimeout(() => state.soundSet(code), t));
+        t += ms;
+        sigTimers.push(setTimeout(() => state.soundSet(0), t));   // 음 사이 짧은 쉼
+        t += 40;
+      });
+    }
     const dot = {
       number(n) { window.AltinoDot.drawNumber(state, n); },
       bytes(rows) { window.AltinoDot.drawBytes(state, rows); },
       clear() { state.dotClear(); },
       calibrate() { window.AltinoDot.openCalibration({ state, send, onDone: () => toast('도트 방향 저장됨'), onCancel: () => {} }); },
+      icon(name) { if (ICONS[name]) window.AltinoDot.drawBytes(state, ICONS[name]); },
     };
 
     // ── S5: 자율 동작은 run() 안에서만 ───────────────────────────────
@@ -413,7 +449,7 @@
       get connected() { return !!(transport && transport.connected); },
       get running() { return running; },
       sensorAge: () => (lastRxAt ? Date.now() - lastRxAt : Infinity),
-      drive, stop, hold, beep, led, dot, run, abortRun: stop,
+      drive, stop, hold, beep, led, dot, run, abortRun: stop, signal,
       block: (el) => { if (el) blockers.add(el); },
       isBlocked,
       store, team, record,
@@ -425,5 +461,5 @@
     return api;
   }
 
-  window.AltinoKit = { VERSION, create, stickerCode, josa };
+  window.AltinoKit = { VERSION, create, stickerCode, josa, SIGNALS, ICONS };
 })();
