@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>알티노 로봇 학교</title>
+<style>
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-medium.woff2') format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-bold.woff2') format('woff2');font-weight:700;font-display:swap}
+  :root{--ink:#3a3230;--mut:#9b8f86;--line:#f0e6d8;--blue:#5ea0ff;--mint:#37c9ad;--sun:#ffb23e;--coral:#ff7a86}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:'Esamanru',system-ui,sans-serif;font-weight:500;color:var(--ink);background:#fff7ea;
+    height:100vh;overflow:hidden;padding:14px 20px;display:flex;flex-direction:column;gap:10px}
+  h1{margin:0;font-size:1.6rem}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .top a{color:var(--blue);text-decoration:none}
+  .bands{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .band{background:#fff;border:2px solid var(--line);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto}
+  .band h2{margin:0 0 4px;font-size:1.05rem}
+  .app{display:block;text-decoration:none;color:inherit;border:2px solid var(--line);border-radius:14px;padding:10px 12px;background:#fffdf8}
+  .app b{display:block;font-size:1.02rem}
+  .app span{color:var(--mut);font-size:.82rem}
+  .app.off{opacity:.45;pointer-events:none}
+  .app.off span::after{content:' · 준비 중'}
+  #team{color:var(--mut)}
+</style>
+</head>
+<body>
+  <div class="top">
+    <h1>🏫 알티노 로봇 학교 <span id="team" style="font-size:1rem"></span></h1>
+    <a href="home.html">체험관 홈 →</a>
+  </div>
+  <div class="bands" id="bands"></div>
+  <script src="js/apps.js"></script>
+  <script>
+    (function () {
+      var BANDS = [['입학하기', '🎒', '#5ea0ff'], ['기초반', '🌱', '#37c9ad'], ['교과반', '📚', '#ffb23e'], ['어울림반', '🎉', '#ff7a86']];
+      var root = document.getElementById('bands');
+      BANDS.forEach(function (b) {
+        var col = document.createElement('div'); col.className = 'band';
+        col.style.borderTop = '6px solid ' + b[2];
+        col.innerHTML = '<h2>' + b[1] + ' ' + b[0] + '</h2>';
+        (window.ALTINO_APPS || []).filter(function (a) { return a.band === b[0]; }).forEach(function (a) {
+          var el = document.createElement('a');
+          el.className = 'app' + (a.ready ? '' : ' off');
+          el.href = a.id + '.html';
+          el.innerHTML = '<b>' + a.title + '</b><span>' + a.id + ' · ' + a.lessons + '차시</span>';
+          col.appendChild(el);
+        });
+        root.appendChild(col);
+      });
+      try { var t = localStorage.getItem('altino.team.name'); if (t) document.getElementById('team').textContent = '· 👥 ' + t; } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

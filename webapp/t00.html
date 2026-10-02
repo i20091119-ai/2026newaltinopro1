@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>t00 견본 앱 — 알티노 로봇 학교</title>
+<!--
+  ═══════════════════════════════════════════════════════════════
+  견본 앱 (t00) — 새 주제 앱은 이 두 파일을 복사해서 시작한다.
+    t00.html → t07.html,  js/t00.js → js/t07.js   (번호만 바꾼다)
+  ★ 표시 구역: 그대로 둔다(15개 앱 통일)   ✎ 표시 구역: 주제에 맞게 바꾼다
+  안전 규칙은 js/kit.js 가 다 처리한다 — 앱에서 직접 setInterval 로 전송하거나
+  localStorage 를 직접 쓰거나 confirm() 을 부르지 않는다. (docs/dev-guide/12)
+  ═══════════════════════════════════════════════════════════════
+-->
+<style>
+  /* ★ 공통 스타일 */
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-light.woff2') format('woff2');font-weight:300;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-medium.woff2') format('woff2');font-weight:500;font-display:swap}
+  @font-face{font-family:'Esamanru';src:url('fonts/esamanru-bold.woff2') format('woff2');font-weight:700;font-display:swap}
+  :root{--cream:#fff7ea;--ink:#3a3230;--mut:#9b8f86;--mint:#37c9ad;--sun:#ffb23e;--coral:#ff7a86;--blue:#5ea0ff;--grape:#b085ff;--line:#f0e6d8;--card:#fff;--shadow:0 8px 24px rgba(120,90,50,.12);--r:20px}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{font-family:'Esamanru','Pretendard',system-ui,sans-serif;font-weight:500;color:var(--ink);
+    background:linear-gradient(rgba(255,247,234,.55),rgba(255,247,234,.55)), url('assets/bg.png') center/cover no-repeat, var(--cream);
+    height:100vh;overflow:hidden;user-select:none;padding:10px 16px;display:flex;flex-direction:column;gap:8px}
+  h1,h2,b{font-weight:700}
+  .hidden{display:none !important}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .topbar a{color:var(--blue);text-decoration:none;font-size:1.05rem}
+  .btn{border:0;border-radius:16px;font-family:inherit;font-size:1.05rem;padding:12px 18px;cursor:pointer;background:var(--blue);color:#fff;box-shadow:var(--shadow)}
+  .btn:active{transform:translateY(2px)}.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+  .btn.mint{background:var(--mint)}.btn.coral{background:var(--coral)}.btn.sun{background:var(--sun);color:#5a3200}.btn:disabled{opacity:.45}
+  /* ⚠ 카드는 overflow:hidden. 조종 패드가 스크롤되는 상자 안에 있으면 버튼을 누른 채
+       손가락이 조금만 움직여도 터치가 취소된다(정밀주차에서 실제로 난 버그). */
+  .stage{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);
+    padding:12px 16px;overflow:hidden;min-height:0;display:flex;flex-direction:column;gap:8px}
+  .card h2{margin:0;font-size:1.05rem}
+  .lead{color:var(--mut);font-size:.88rem;margin:0}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  /* ★ 조종 패드 — kit.hold() 가 touch-action:none 과 포인터 캡처를 붙인다 */
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:10px;width:100%;max-width:330px;margin:4px auto 0}
+  .pad button{font-size:2rem;padding:20px 0;border-radius:18px;border:2px solid var(--line);background:#fff;box-shadow:var(--shadow);font-family:inherit}
+  .pad button.pressed{background:var(--mint);color:#fff;transform:translateY(2px)}
+  .pad .up{grid-column:2;grid-row:1}.pad .left{grid-column:1;grid-row:2}.pad .down{grid-column:2;grid-row:2}.pad .right{grid-column:3;grid-row:2}
+  .notes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .notes button{padding:10px 0;font-size:1rem}
+  input[type=text]{font-family:inherit;font-size:1.05rem;padding:9px 12px;border-radius:12px;border:2px solid var(--line);width:150px}
+  input[type=range]{width:100%}
+  .modal{position:fixed;inset:0;background:rgba(20,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+  .sheet{background:#fff;border-radius:22px;padding:24px 28px;width:min(440px,92vw);text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ★ 상단바: 왼쪽 = 홈·제목 / 오른쪽 = #kitBar (kit 이 모둠·로봇·배터리·연결 칩을 채운다) -->
+<div class="topbar">
+  <div class="row">
+    <a href="school.html">← 로봇학교</a>
+    <h1 style="margin:0;font-size:1.25rem">🧩 견본 앱 <span class="lead" style="display:inline">t00 · 새 앱은 이걸 복사</span></h1>
+  </div>
+  <div id="kitBar"></div>
+</div>
+
+<!-- ✎ 앱 내용 -->
+<div class="stage">
+
+  <section class="card">
+    <h2>🕹 조종 — 누르고 있는 동안만 움직여요</h2>
+    <div class="pad">
+      <button class="up" id="d-up">▲</button>
+      <button class="left" id="d-left">◀</button>
+      <button class="down" id="d-down">▼</button>
+      <button class="right" id="d-right">▶</button>
+    </div>
+    <label class="lead" style="margin-top:6px">속도 <b id="spdVal">300</b>
+      <input id="spd" type="range" min="0" max="500" step="10" value="300"></label>
+    <p class="lead">💡 250 아래로는 제자리에서 잘 못 출발해요. kit 이 출발 순간만 세게 밀어 줘요(킥).</p>
+    <button id="autoRun" class="btn mint">🤖 벽 앞에서 스스로 멈추기</button>
+    <button id="autoStop" class="btn coral hidden">■ 정지</button>
+  </section>
+
+  <section class="card">
+    <h2>🎵 소리 · 💡 LED · 🔢 도트</h2>
+    <div class="notes" id="notes"></div>
+    <div class="row">
+      <button id="ledOn" class="btn sun">💡 켜기</button>
+      <button id="ledOff" class="btn ghost">끄기</button>
+    </div>
+    <div class="row">
+      <button id="dotUp" class="btn ghost">숫자 −</button>
+      <b id="dotN" style="font-size:1.6rem;min-width:2ch;text-align:center">7</b>
+      <button id="dotDown" class="btn ghost">숫자 +</button>
+      <button id="dotCal" class="btn ghost">방향 맞추기</button>
+    </div>
+    <p class="lead">도트는 논리좌표(왼→오, 위→아래)로 그리면 방향 보정은 공용 모듈이 해요.</p>
+    <button id="openQuiz" class="btn">📝 문제창 열기 (창이 뜨면 차가 멈춰요)</button>
+  </section>
+
+  <section class="card">
+    <h2>👥 모둠 · 📒 성장기록부 · 💾 저장</h2>
+    <div class="row"><input id="teamIn" type="text" maxlength="12" placeholder="모둠 알티노 이름"><button id="teamSet" class="btn">이름 짓기</button></div>
+    <p class="lead">모둠 이름은 모든 앱이 같이 써요(t01 입학식에서 지어요).</p>
+    <div class="row"><button id="recAdd" class="btn mint">⭐ 성장기록부에 남기기</button><span class="lead">이 앱 기록 <b id="recN">0</b>개</span></div>
+    <div class="row"><span>누른 횟수 <b id="cnt">0</b></span><button id="cntUp" class="btn ghost">+1</button><button id="cntReset" class="btn ghost">초기화</button></div>
+    <p class="lead">저장은 kit.store — 앱마다 이름이 나뉘어 서로 안 덮어써요.</p>
+  </section>
+</div>
+
+<!-- ✎ 앱이 띄우는 창 예시 — kit.block() 으로 등록하면 떠 있는 동안 움직임이 막힌다 -->
+<div id="quiz" class="modal hidden">
+  <div class="sheet">
+    <h2 style="margin:0 0 10px">📝 문제창</h2>
+    <p class="lead" style="margin-bottom:14px">이 창이 떠 있는 동안에는 패드를 눌러도 차가 움직이지 않아요.</p>
+    <button id="quizClose" class="btn">닫기</button>
+  </div>
+</div>
+
+<!-- ★ 스크립트 순서 고정 -->
+<script src="js/protocol.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/dotmatrix.js"></script>
+<script src="js/transport.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/t00.js"></script><!-- ✎ 새 앱은 js/tNN.js -->
+</body>
+</html>
